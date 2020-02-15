@@ -55,7 +55,8 @@ typedef struct _grafana_query_request{
 	grafana_query_request_adhoc_filter_s *adhoc_filters;
 }grafana_query_request_s;
 
-char * grafana_parse_request(MYSQL *mysql, const char *request_body, snetflow_job_s *job, const char *interface);
+char *grafana_build_reponse_search_top();
+char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job);
 
 #ifdef __cplusplus
 }

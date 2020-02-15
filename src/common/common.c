@@ -3,6 +3,7 @@
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdarg.h>
 
 #include "common.h"
 
@@ -10,6 +11,26 @@
 extern "C"
 {
 #endif
+
+/***************************************************************/
+/* 函  数：myprintf *********************************************/
+/* 说  明：根据DEBUG的值控制输出 ********************************/
+/***************************************************************/
+int myprintf(const char* format, ...)
+{
+	int result;
+
+	result = 0;
+	if(DEBUG)
+	{
+	    va_list vp;
+	    va_start(vp, format);
+	    result = vprintf(format, vp);
+	    va_end(vp);
+	}
+
+	return result;
+}
 
 /***************************************************************/
 /* 函  数：str_to_uint ******************************************/

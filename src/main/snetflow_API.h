@@ -6,14 +6,7 @@ extern "C" {
 #endif
 
 #define API_PORT  6666
-#define API_QUEUE   20
-#define API_BUFFER_SIZE 4096
-
-typedef struct _url_parted {
-	int count;
-	char *parted[128];
-}url_parted_s;
-
+#define API_BUFFER_SIZE 40960
 
 #define ARGUMENTS "\
 Usage:\n\
