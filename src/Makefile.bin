@@ -1,0 +1,35 @@
+#这个文件的内容是公用的，src中所有字目录下的makefile都要引用这个文件，使得makefile更简洁
+
+#引用全局变量
+include $(TOP_DIR)/Makefile.env
+
+SRCS := $(wildcard *.c)
+DEPS := $(patsubst %.c,%.d,$(SRCS))
+
+#获得当前目录的所有子目录（.和..除外）。
+SUB_DIR = $(shell ls -l ../|grep ^d |awk '{print $$9}')
+#将所有子目录作为头文件查找路径
+INC_DIR = $(addprefix -I../,$(SUB_DIR))
+INCS = $(foreach dir, $(INC_DIR), $(dir))
+INCS += -I../../include
+
+#依赖文件.d中的一条命令
+CMD := $(CC) -c $< $(CFLAGS) $(INCS)
+
+all: $(DEPS)
+
+#在每个子目录中生成依赖文件.d，并将.d当做makefile执行。由于生成的.o文件在顶层目录obj下，并且头文件不在同一个目录，所以要对.d进行一些处理
+#第一行将gcc -MM的结果输出到临时文件中
+#第二行是字符串查找替换，在.o文件前插入相对路径，并输出到.d中
+#由于头文件不在同一个目录，所以不能用makefile的隐含规则。第三行就是把编译命令追加输出到.d中
+#第四行就是把移动.o文件的命令追加输出到.d中
+#第五行把.d当做makefile执行
+#第六行删除.d和临时文件
+#每一行后都有连接符，这样将连接成一条命令，只启动了一个shell。
+%.d : %.c
+	@set -e; rm -f $@; $(CC) -MM $< $(INCS) > $@.$$$$; \
+	sed 's,\($*\)\.o[ :]*,$(TOP_DIR)/$(OBJ_DIR)/\1.o :,g' < $@.$$$$ > $@; \
+	echo -e "\t"$(CMD)" "$< >> $@; \
+	echo -e "\t@mv $(patsubst %.d, %.o,$@) $(TOP_DIR)/$(OBJ_DIR);\\" >> $@; \
+	$(MAKE) -f $@; \
+	rm -f $@ $@.$$$$
