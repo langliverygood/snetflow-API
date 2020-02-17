@@ -103,6 +103,8 @@ static void send_response(struct evhttp_request *req, const char *response_body,
 	{
 		evbuffer_add_printf(retbuff, "%s", response_body);
 	}
+	evhttp_add_header(req->output_headers, "Content-Type", "text/plain; charset=UTF-8");
+	evhttp_add_header(req->output_headers, "Connection", "close");
 	evhttp_send_reply(req, status_code, "Client", retbuff);
 	evbuffer_free(retbuff);
 

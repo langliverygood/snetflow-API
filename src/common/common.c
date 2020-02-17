@@ -134,6 +134,20 @@ void ipprotocal_int_to_str(int prot, char *out, int out_len)
 	return;
 }
 
+/*static void get_wday(char *wd, const int len)
+{
+	time_t timep;
+    struct tm *p;
+	
+    time(&timep);
+    p = localtime(&timep);
+	memset(wd, 0, len);
+	today_int = p->tm_wday;
+	strcpy(wd, wday[today_int]);
+
+	return;
+}
+*/
 #ifdef __cplusplus
 }
 #endif

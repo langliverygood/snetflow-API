@@ -149,6 +149,7 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 	MYSQL_RES *res;
 	MYSQL_ROW row;
 	struct in_addr ip_addr1, ip_addr2, ip_addr3;
+	time_t times, timee;
 
     /* 每次查询都要将上次的结果清空 */
 	top_init();
@@ -165,6 +166,7 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 	}
 	
 	/* mysql_store_result将全部的查询结果读取到客户端 */
+	time(&times);
 	res = mysql_use_result(mysql);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
 	{
@@ -212,6 +214,8 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 		}
 	}
 	mysql_free_result(res);
+	time(&timee);
+	printf("%ld\n", timee - timee);
 	build_response_body_json(kind);
 
 	return top_response_body;
