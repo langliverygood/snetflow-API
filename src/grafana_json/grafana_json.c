@@ -278,41 +278,40 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 		return NULL;
 	}
 	grafana_get_time_from_request(query_rst, s_time, e_time, sizeof(s_time));
+	tag = query_rst->targets->data.additional;
+	if(tag == NULL)
+	{
+		return NULL;
+	}
 	start_time = timestr_to_stamp(s_time);
 	end_time = timestr_to_stamp(e_time);
-	out = get_top(mysql, start_time, end_time);
-	if(!out)
-	{
-		
-	}
-	out_json = cJSON_Parse(out);
 	job->start_time = start_time;
 	job->end_time = end_time;
 	/* 根据target拼接json */
 	response_json = cJSON_CreateObject();
 	/* rows */
 	rows = cJSON_AddArrayToObject(response_json, "rows");
-	tag = query_rst->targets->data.additional;
-	if(tag == NULL)
+	if(!strcasecmp(tag, "flow"))
 	{
-		
-	}
-	else if(!strcasecmp(tag, "src_ip"))
-	{
-		job->kind = TOP_SRC_IP;
-		arrays = cJSON_GetObjectItem(out_json, "src_ip");
+		out = get_top(mysql, start_time, end_time, TOP_FLOW);
+		if(!out)
+		{
+			return NULL;
+		}
+		out_json = cJSON_Parse(out);
+		job->kind = TOP_FLOW;
+		arrays = cJSON_GetObjectItem(out_json, "flow");
 		memset(col_name, 0, sizeof(col_name));
-		strcpy(col_name, "src_ip");
-	}
-	else if(!strcasecmp(tag, "dst_ip"))
-	{
-		job->kind = TOP_DST_IP;
-		arrays = cJSON_GetObjectItem(out_json, "dst_ip");
-		memset(col_name, 0, sizeof(col_name));
-		strcpy(col_name, "dst_ip");
+		strcpy(col_name, "flow");
 	}
 	else if(!strcasecmp(tag, "src_set"))
 	{
+		out = get_top(mysql, start_time, end_time, TOP_SRC_SET);
+		if(!out)
+		{
+			return NULL;
+		}
+		out_json = cJSON_Parse(out);
 		job->kind = TOP_SRC_SET;
 		arrays = cJSON_GetObjectItem(out_json, "src_set");
 		memset(col_name, 0, sizeof(col_name));
@@ -320,6 +319,12 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	}
 	else if(!strcasecmp(tag, "dst_set"))
 	{
+		out = get_top(mysql, start_time, end_time, TOP_DST_SET);
+		if(!out)
+		{
+			return NULL;
+		}
+		out_json = cJSON_Parse(out);
 		job->kind = TOP_DST_SET;
 		arrays = cJSON_GetObjectItem(out_json, "dst_set");
 		memset(col_name, 0, sizeof(col_name));
@@ -327,6 +332,12 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	}
 	else if(!strcasecmp(tag, "src_biz"))
 	{
+		out = get_top(mysql, start_time, end_time, TOP_SRC_BIZ);
+		if(!out)
+		{
+			return NULL;
+		}
+		out_json = cJSON_Parse(out);
 		job->kind = TOP_SRC_BIZ;
 		arrays = cJSON_GetObjectItem(out_json, "src_biz");
 		memset(col_name, 0, sizeof(col_name));
@@ -334,6 +345,12 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	}
 	else if(!strcasecmp(tag, "dst_biz"))
 	{
+		out = get_top(mysql, start_time, end_time, TOP_DST_BIZ);
+		if(!out)
+		{
+			return NULL;
+		}
+		out_json = cJSON_Parse(out);
 		job->kind = TOP_DST_BIZ;
 		arrays = cJSON_GetObjectItem(out_json, "dst_biz");
 		memset(col_name, 0, sizeof(col_name));
@@ -341,7 +358,7 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	}
 	else
 	{
-		
+		return NULL;
 	}
 	count = cJSON_GetArraySize(arrays);
 	for(i = 0; i < count; i++)
@@ -367,7 +384,6 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	cJSON_AddItemToArray(columns, column);
 	/* type */
 	cJSON_AddStringToObject(response_json, "type", "table");
-
 	/* 释放空间 */
 	cJSON_Delete(out_json);
 	free(out);

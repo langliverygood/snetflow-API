@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
@@ -98,6 +99,40 @@ time_t timestr_to_stamp(char *str_time)
 	return t;
 }
 
+/***************************************************************/
+/* 函  数：ipprotocal_int_to_str ********************************/
+/* 说  明：ip头部协议字段转字符串             *******************************/
+/***************************************************************/
+void ipprotocal_int_to_str(int prot, char *out, int out_len)
+{
+	memset(out, 0, out_len);
+	switch(prot)
+	{
+		case ICMP:
+			strncpy(out, "ICMP", out_len);
+			break;
+		case IGMP:
+			strncpy(out, "IGMP", out_len);
+			break;
+		case TCP:
+			strncpy(out, "TCP", out_len);
+			break;
+		case UDP:
+			strncpy(out, "UDP", out_len);
+			break;
+		case IGRP:
+			strncpy(out, "IGRP", out_len);
+			break;
+		case OSPF:
+			strncpy(out, "OSPF", out_len);
+			break;
+		default:
+			strncpy(out, "Unknown", out_len);
+			break;
+	}
+
+	return;
+}
 
 #ifdef __cplusplus
 }

@@ -12,8 +12,7 @@
 
 using namespace std;
 
-static map<string, uint64_t> src_ip_top;
-static map<string, uint64_t> dst_ip_top;
+static map<string, uint64_t> flow_top;
 static map<string, uint64_t> src_set_top;
 static map<string, uint64_t> dst_set_top;
 static map<string, uint64_t> src_biz_top;
@@ -23,8 +22,7 @@ static char *top_response_body;
 static void top_init()
 {
 	top_response_body = NULL;
-	src_ip_top.clear();
-	dst_ip_top.clear();
+	flow_top.clear();
 	src_set_top.clear();
 	dst_set_top.clear();
 	src_biz_top.clear();
@@ -57,80 +55,84 @@ static void top_traverse(map<string, uint64_t> my_map)
 }
 #endif
 
-static void build_response_body_json()
+static void build_response_body_json(int kind)
 {
 	map<string, uint64_t>::iterator it;
 	char bytes[32];
 	string s;
-	cJSON *root, *src_ip, *dst_ip, *src_set, *dst_set, *src_biz, *dst_biz, *tmp;
+	cJSON *root, *flow, *src_set, *dst_set, *src_biz, *dst_biz, *tmp;
 
 	root = cJSON_CreateObject();
-	src_ip = cJSON_AddArrayToObject(root, "src_ip");
-	dst_ip = cJSON_AddArrayToObject(root, "dst_ip");
+	flow = cJSON_AddArrayToObject(root, "flow");
 	src_set = cJSON_AddArrayToObject(root, "src_set");
 	dst_set = cJSON_AddArrayToObject(root, "dst_set");
 	src_biz = cJSON_AddArrayToObject(root, "src_biz");
 	dst_biz = cJSON_AddArrayToObject(root, "dst_biz");
 
-    /* 添加源ip的流量 */
-	for(it = src_ip_top.begin(); it != src_ip_top.end(); it++) 
+    /* 添加流 */
+	if(kind == TOP_FLOW)
 	{
-		tmp = cJSON_CreateObject();
-        s = it->first;
-        cJSON_AddStringToObject(tmp, "src_ip", s.c_str());
-		sprintf(bytes, "%lu", it->second);
-        cJSON_AddStringToObject(tmp, "bytes", bytes);
-        cJSON_AddItemToArray(src_ip, tmp);
-	}
-	/* 添加目的ip的流量 */
-	for(it = dst_ip_top.begin(); it != dst_ip_top.end(); it++) 
-	{
-		tmp = cJSON_CreateObject();
-        s = it->first;
-        cJSON_AddStringToObject(tmp, "dst_ip", s.c_str());
-        sprintf(bytes, "%lu", it->second);
-        cJSON_AddStringToObject(tmp, "bytes", bytes);
-        cJSON_AddItemToArray(dst_ip, tmp);
+		for(it = flow_top.begin(); it != flow_top.end(); it++) 
+		{
+			tmp = cJSON_CreateObject();
+	        s = it->first;
+	        cJSON_AddStringToObject(tmp, "flow", s.c_str());
+			sprintf(bytes, "%lu", it->second);
+	        cJSON_AddStringToObject(tmp, "bytes", bytes);
+	        cJSON_AddItemToArray(flow, tmp);
+		}
 	}
 	/* 添加源集群的流量 */
-	for(it = src_set_top.begin(); it != src_set_top.end(); it++) 
+	if(kind == TOP_SRC_SET)
 	{
-		tmp = cJSON_CreateObject();
-        s = it->first;
-        cJSON_AddStringToObject(tmp, "src_set", s.c_str());
-		sprintf(bytes, "%lu", it->second);
-		cJSON_AddStringToObject(tmp, "bytes", bytes);
-        cJSON_AddItemToArray(src_set, tmp);
+		for(it = src_set_top.begin(); it != src_set_top.end(); it++) 
+		{
+			tmp = cJSON_CreateObject();
+	        s = it->first;
+	        cJSON_AddStringToObject(tmp, "src_set", s.c_str());
+			sprintf(bytes, "%lu", it->second);
+			cJSON_AddStringToObject(tmp, "bytes", bytes);
+	        cJSON_AddItemToArray(src_set, tmp);
+		}
 	}
 	/* 添加目的集群的流量 */
-	for(it = dst_set_top.begin(); it != dst_set_top.end(); it++) 
+	if(kind == TOP_DST_SET)
 	{
-		tmp = cJSON_CreateObject();
-        s = it->first;
-        cJSON_AddStringToObject(tmp, "dst_set", s.c_str());
-        sprintf(bytes, "%lu", it->second);
-        cJSON_AddStringToObject(tmp, "bytes", bytes);
-        cJSON_AddItemToArray(dst_set, tmp);
+		for(it = dst_set_top.begin(); it != dst_set_top.end(); it++) 
+		{
+			tmp = cJSON_CreateObject();
+	        s = it->first;
+	        cJSON_AddStringToObject(tmp, "dst_set", s.c_str());
+	        sprintf(bytes, "%lu", it->second);
+	        cJSON_AddStringToObject(tmp, "bytes", bytes);
+	        cJSON_AddItemToArray(dst_set, tmp);
+		}
 	}
 	/* 添加源业务的流量 */
-	for(it = src_biz_top.begin(); it != src_biz_top.end(); it++) 
+	if(kind == TOP_SRC_BIZ)
 	{
-		tmp = cJSON_CreateObject();
-        s = it->first;
-        cJSON_AddStringToObject(tmp, "src_biz", s.c_str());
-        sprintf(bytes, "%lu", it->second);
-        cJSON_AddStringToObject(tmp, "bytes", bytes);
-        cJSON_AddItemToArray(src_biz, tmp);
+		for(it = src_biz_top.begin(); it != src_biz_top.end(); it++) 
+		{
+			tmp = cJSON_CreateObject();
+	        s = it->first;
+	        cJSON_AddStringToObject(tmp, "src_biz", s.c_str());
+	        sprintf(bytes, "%lu", it->second);
+	        cJSON_AddStringToObject(tmp, "bytes", bytes);
+	        cJSON_AddItemToArray(src_biz, tmp);
+		}
 	}
 	/* 添加目的业务的流量 */
-	for(it = dst_biz_top.begin(); it != dst_biz_top.end(); it++) 
+	else if(kind == TOP_DST_BIZ)
 	{
-		tmp = cJSON_CreateObject();
-        s = it->first;
-        cJSON_AddStringToObject(tmp, "dst_biz", s.c_str());
-        sprintf(bytes, "%lu", it->second);
-        cJSON_AddStringToObject(tmp, "bytes", bytes);
-        cJSON_AddItemToArray(dst_biz, tmp);
+		for(it = dst_biz_top.begin(); it != dst_biz_top.end(); it++) 
+		{
+			tmp = cJSON_CreateObject();
+	        s = it->first;
+	        cJSON_AddStringToObject(tmp, "dst_biz", s.c_str());
+	        sprintf(bytes, "%lu", it->second);
+	        cJSON_AddStringToObject(tmp, "bytes", bytes);
+	        cJSON_AddItemToArray(dst_biz, tmp);
+		}
 	}
 	top_response_body = cJSON_Print(root);
 	cJSON_Delete(root);
@@ -138,14 +140,15 @@ static void build_response_body_json()
 	return;
 }
 
-char *get_top(MYSQL *mysql, time_t start_time, time_t end_time)
+char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 {
 	int flag;
-	long int ip, bytes;
-	char query[1024], s_time[128], e_time[128];
+	long int ip1, ip2, ip3, bytes, prot;
+	char query[1024], s_time[128], e_time[128], flow[512], prot_str[16];
+	char colloct[32], s_ip[64], d_ip[64];
 	MYSQL_RES *res;
 	MYSQL_ROW row;
-	struct in_addr ip_addr;
+	struct in_addr ip_addr1, ip_addr2, ip_addr3;
 
     /* 每次查询都要将上次的结果清空 */
 	top_init();
@@ -157,44 +160,59 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time)
 	flag = mysql_real_query(mysql, query, (unsigned int)strlen(query));
 	if(flag)
 	{
-		if(DEBUG)
-		{
-			printf("Query failed!\n");
-		}
-		return 0;
+		myprintf("Query failed!\n");
+		return NULL;
 	}
 	
 	/* mysql_store_result将全部的查询结果读取到客户端 */
-	res = mysql_store_result(mysql);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         	/*mysql_fetch_row检索结果集的下一行*/
+	res = mysql_use_result(mysql);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
 	{
 		/* bytes字段转化为long int */
 		if(str_to_long(row[MYSQL_FILED_BYTES], &bytes))
 		{
-				continue;
+			continue;
 		}
-		/* 记录源ip的流量总和 */
-		if(!str_to_long(row[MYSQL_FILED_SRCIP], &ip))
+		/* 记录流 */
+		if(kind == TOP_FLOW)
 		{
-			ip_addr.s_addr = htonl((uint32_t)ip);
-			top_insert(src_ip_top, inet_ntoa(ip_addr), bytes);
-		}
-		/* 记录目的ip的流量总和 */
-		if(!str_to_long(row[MYSQL_FILED_DSTIP], &ip))
-		{
-			ip_addr.s_addr = htonl((uint32_t)ip);
-			top_insert(dst_ip_top, inet_ntoa(ip_addr), bytes);
+			if((str_to_long(row[MYSQL_FILED_EXPORTER], &ip1) == 0) && (str_to_long(row[MYSQL_FILED_SRCIP], &ip2) == 0) && (str_to_long(row[MYSQL_FILED_DSTIP], &ip3) == 0) && (str_to_long(row[MYSQL_FILED_PROT], &prot) == 0))
+			{
+				memset(flow, 0, sizeof(flow));
+				ip_addr1.s_addr = htonl((uint32_t)ip1);
+				ip_addr2.s_addr = htonl((uint32_t)ip2);
+				ip_addr3.s_addr = htonl((uint32_t)ip3);
+				sprintf(colloct, "[%s %s]", inet_ntoa(ip_addr1), row[MYSQL_FILED_SOURCEID]);
+				sprintf(s_ip, "%s(%s)", inet_ntoa(ip_addr2), row[MYSQL_FILED_SRCBIZ]);
+				sprintf(d_ip, "%s:%s(%s)", inet_ntoa(ip_addr3), row[MYSQL_FILED_DSTPORT], row[MYSQL_FILED_DSTBIZ]);
+				ipprotocal_int_to_str((int)prot, prot_str, sizeof(prot_str));
+				sprintf(flow, "%-23s %-39s --> %-45s %s", colloct, s_ip, d_ip, prot_str);	
+				top_insert(flow_top, flow, bytes);
+			}
 		}
 		/* 记录源集群的流量总和 */
-		top_insert(src_set_top, row[MYSQL_FILED_SRCSET], bytes);
+		else if(kind == TOP_SRC_SET)
+		{
+			top_insert(src_set_top, row[MYSQL_FILED_SRCSET], bytes);
+		}
 		/* 记录目的集群的流量总和 */
-		top_insert(dst_set_top, row[MYSQL_FILED_DSTSET], bytes);
+		else if(kind == TOP_DST_SET)
+		{
+			top_insert(dst_set_top, row[MYSQL_FILED_DSTSET], bytes);
+		}
 		/* 记录源业务的流量总和 */
+			else if(kind == TOP_SRC_BIZ)
+		{
 		top_insert(src_biz_top, row[MYSQL_FILED_SRCBIZ], bytes);
+		}
 		/* 记录目的业务的流量总和 */
-		top_insert(dst_biz_top, row[MYSQL_FILED_DSTBIZ], bytes);
+		else if(kind == TOP_DST_BIZ)
+		{
+			top_insert(dst_biz_top, row[MYSQL_FILED_DSTBIZ], bytes);
+		}
 	}
-	build_response_body_json();
+	mysql_free_result(res);
+	build_response_body_json(kind);
 
 	return top_response_body;
 }

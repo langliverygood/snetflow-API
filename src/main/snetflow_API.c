@@ -101,7 +101,7 @@ static void send_response(struct evhttp_request *req, const char *response_body,
 	}
 	if(response_body)
 	{
-		evbuffer_add_printf(retbuff, response_body);
+		evbuffer_add_printf(retbuff, "%s", response_body);
 	}
 	evhttp_send_reply(req, status_code, "Client", retbuff);
 	evbuffer_free(retbuff);
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
 	}
 	
 	/* 设置请求超时时间(s) */
-	evhttp_set_timeout(http_server,5);
+	evhttp_set_timeout(http_server, 15);
 	/* 设置事件处理函数，evhttp_set_cb针对每一个事件(请求)注册一个处理函数 */
 	evhttp_set_cb(http_server, "/snetflow-API/top/", http_handler_top, NULL);
 	evhttp_set_cb(http_server, "/snetflow-API/top/search", http_handler_top_search, NULL);

@@ -27,8 +27,17 @@ extern "C" {
 #define MYSQL_FILED_DSTPORT   13
 #define MYSQL_FILED_BYTES     14
 #define MYSQL_FILED_TCPFLAGS  15
-#define MYSQL_FILED_VISION    16
+#define MYSQL_FILED_VERSION    16
 
+/* 定义ip头部常见的协议字段 */
+#define ICMP 1
+#define IGMP 2 
+#define TCP  6
+#define UDP  17
+#define IGRP 88
+#define OSPF 89
+
+/* 枚举http请求方法 */
 typedef enum _http_request_method {
 	GET = 1,
 	POST,
@@ -81,6 +90,11 @@ void timestamp_to_str(time_t timestamp, char *time_str, int str_len);
 /* 返回值：时间戳 **********************************************/
 /***************************************************************/
 time_t timestr_to_stamp(char *str_time);
+/***************************************************************/
+/* 函  数：ipprotocal_int_to_str ********************************/
+/* 说  明：ip头部协议字段转字符串             *******************************/
+/***************************************************************/
+void ipprotocal_int_to_str(int prot, char *out, int out_len);
 
 #ifdef __cplusplus
 }
