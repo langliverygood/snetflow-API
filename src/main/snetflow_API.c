@@ -84,7 +84,7 @@ static void sneflow_API_init(int argc, char *argv[])
                 set_debug(1);
                 break;
             case 'v':
-                printf("%s version 1.0 \n Auther：langl5@chinaunicom.cn\n", argv[0]);
+                printf("%s version 1.0 \nAuther：langl5@chinaunicom.cn\n", argv[0]);
                 exit(0);
                 break;
             default:
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 	event_init();
 	sneflow_API_init(argc, argv);
 	//启动http服务端
-	http_server = evhttp_start((const char *)"0.0.0.0", API_PORT);
+	http_server = evhttp_start((const char *)"0.0.0.0", api_port);
 	if(http_server == NULL)
 	{
 		myprintf("%s\n", "http server start failed.");

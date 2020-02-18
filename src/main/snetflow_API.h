@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-#define API_PORT  6666
 #define API_BUFFER_SIZE 40960
 
 #define ARGUMENTS "\

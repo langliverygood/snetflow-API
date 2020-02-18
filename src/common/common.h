@@ -8,8 +8,24 @@ extern "C" {
 #endif
 
 /* 数据库字段定义 */
-#define TABLE_NAME "record"
+#define TABLE_NAME      "record"
 #define MYSQL_TIMESTAMP "timestamp"
+#define MYSQL_ID        "id"
+#define MYSQL_SOURCEID  "source_id"
+#define MYSQL_EXPORTER  "exporter_address"
+#define MYSQL_SRCIP     "ipv4_src_addr"
+#define MYSQL_SRCSET    "src_set"
+#define MYSQL_SRCBIZ    "src_biz"
+#define MYSQL_DSTIP     "ipv4_dst_addr"
+#define MYSQL_DSTSET    "dst_set"
+#define MYSQL_DSTBIZ    "dst_biz"
+#define MYSQL_NEXTHOP   "ipv4_next_hop"
+#define MYSQL_PROT      "prot"
+#define MYSQL_SRCPORT   "l4_src_port"
+#define MYSQL_DSTPORT   "l4_dst_port"
+#define MYSQL_BYTES     "bytes"
+#define MYSQL_TCPFLAGS  "tcp_flags"
+#define MYSQL_VERSION   "version"
 #define MYSQL_FILED_TIMESTAMP 0
 #define MYSQL_FILED_ID        1
 #define MYSQL_FILED_SOURCEID  2

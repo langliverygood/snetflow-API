@@ -7,12 +7,6 @@
 extern "C" {
 #endif
 
-#define TOP_FLOW  1
-#define TOP_SRC_SET 2
-#define TOP_DST_SET 3
-#define TOP_SRC_BIZ 4
-#define TOP_DST_BIZ 5
-
 typedef struct _grafana_query_request_range_raw{
 	char from[128];
 	char to[128];

@@ -169,26 +169,27 @@ static int top_query(MYSQL *mysql, const char *query, int kind)
 	}
 	
 	time(&times);
-	res = mysql_use_result(mysql);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         	/*mysql_fetch_row检索结果集的下一行*/
+	res = mysql_use_result(mysql); 
+	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
 	{
 		/* bytes字段转化为long int */
-		if(str_to_long(row[MYSQL_FILED_BYTES], &bytes))
+		if(str_to_long(row[0], &bytes))
 		{
 			continue;
 		}
 		/* 记录流 */
 		if(kind == TOP_FLOW)
 		{
-			if((str_to_long(row[MYSQL_FILED_EXPORTER], &ip1) == 0) && (str_to_long(row[MYSQL_FILED_SRCIP], &ip2) == 0) && (str_to_long(row[MYSQL_FILED_DSTIP], &ip3) == 0) && (str_to_long(row[MYSQL_FILED_PROT], &prot) == 0))
+			if((str_to_long(row[1], &ip1) == 0) && (str_to_long(row[3], &ip2) == 0) && (str_to_long(row[5], &ip3) == 0) && (str_to_long(row[8], &prot) == 0))
 			{
 				memset(flow, 0, sizeof(flow));
 				ip_addr1.s_addr = htonl((uint32_t)ip1);
 				ip_addr2.s_addr = htonl((uint32_t)ip2);
 				ip_addr3.s_addr = htonl((uint32_t)ip3);
-				sprintf(colloct, "[%s %s]", inet_ntoa(ip_addr1), row[MYSQL_FILED_SOURCEID]);
-				sprintf(s_ip, "%s(%s)", inet_ntoa(ip_addr2), row[MYSQL_FILED_SRCBIZ]);
-				sprintf(d_ip, "%s:%s(%s)", inet_ntoa(ip_addr3), row[MYSQL_FILED_DSTPORT], row[MYSQL_FILED_DSTBIZ]);
+				sprintf(colloct, "[%s %s]", inet_ntoa(ip_addr1), row[2]);
+				sprintf(s_ip, "%s(%s)", inet_ntoa(ip_addr2), row[4]);
+				sprintf(d_ip, "%s:%s(%s)", inet_ntoa(ip_addr3), row[6], row[7]);
 				ipprotocal_int_to_str((int)prot, prot_str, sizeof(prot_str));
 				sprintf(flow, "%-23s %-39s --> %-45s %s", colloct, s_ip, d_ip, prot_str);	
 				top_insert(flow_top, flow, bytes);
@@ -197,22 +198,22 @@ static int top_query(MYSQL *mysql, const char *query, int kind)
 		/* 记录源集群的流量总和 */
 		else if(kind == TOP_SRC_SET)
 		{
-			top_insert(src_set_top, row[MYSQL_FILED_SRCSET], bytes);
+			top_insert(src_set_top, row[1], bytes);
 		}
 		/* 记录目的集群的流量总和 */
 		else if(kind == TOP_DST_SET)
 		{
-			top_insert(dst_set_top, row[MYSQL_FILED_DSTSET], bytes);
+			top_insert(dst_set_top, row[1], bytes);
 		}
 		/* 记录源业务的流量总和 */
 			else if(kind == TOP_SRC_BIZ)
 		{
-		top_insert(src_biz_top, row[MYSQL_FILED_SRCBIZ], bytes);
+		top_insert(src_biz_top, row[1], bytes);
 		}
 		/* 记录目的业务的流量总和 */
 		else if(kind == TOP_DST_BIZ)
 		{
-			top_insert(dst_biz_top, row[MYSQL_FILED_DSTBIZ], bytes);
+			top_insert(dst_biz_top, row[1], bytes);
 		}
 	}
 	mysql_free_result(res);
@@ -225,7 +226,7 @@ static int top_query(MYSQL *mysql, const char *query, int kind)
 char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 {
 	int i, s_week, e_week, interval;
-	char query[1024], s_time[128], e_time[128], week_str[4];
+	char query[1024], s_time[128], e_time[128], week_str[4], column[128];
 	time_t time_now;
 	
     /* 每次查询都要将上次的结果清空 */
@@ -253,11 +254,36 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 	{
 		interval += 7;
 	}
+	/* 确定要查询的列 */
+	if(kind == TOP_FLOW)
+	{
+		sprintf(column, "%s,%s,%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_EXPORTER, MYSQL_SOURCEID, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
+	}
+	else if(kind == TOP_SRC_SET)
+	{
+		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_SRCSET);
+	}
+	else if(kind == TOP_DST_SET)
+	{
+		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_DSTSET);
+	}
+	else if(kind == TOP_SRC_BIZ)
+	{
+		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_SRCBIZ);
+	}
+	else if(kind == TOP_DST_BIZ)
+	{
+		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_DSTBIZ);
+	}
+	else
+	{
+		return NULL;
+	}
 	/* 当interval=0的时候，有两种情况：1、时间跨度只包含一天。2、时间跨度将近但未到达七天，如：上个周六晚8点到这个周六早10点。*/
 	if(interval == 0)
 	{
 		wday_int_to_str(s_week, week_str, sizeof(week_str));
-		sprintf(query, "select * from %s_%s where %s >= '%s' and %s <= '%s'", TABLE_NAME, week_str, MYSQL_TIMESTAMP, s_time, MYSQL_TIMESTAMP, e_time);
+		sprintf(query, "select %s from %s_%s where %s >= '%s' and %s <= '%s'", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, s_time, MYSQL_TIMESTAMP, e_time);
 		top_query(mysql, query, kind);
 		/* 如果是第二种情况(时间跨度超过一天), 要查询其他6张表的全部 */
 		if(end_time - start_time > 60 * 60 * 24)
@@ -265,7 +291,7 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 			for(i = (s_week + 1) % 7; i != s_week; i = (i + 1) % 7)
 			{
 				wday_int_to_str(i, week_str, sizeof(week_str));
-				sprintf(query, "select * from %s_%s", TABLE_NAME, week_str);
+				sprintf(query, "select %s from %s_%s", column, TABLE_NAME, week_str);
 				top_query(mysql, query, kind);
 			}
 		}
@@ -277,15 +303,15 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 			wday_int_to_str((s_week + i) % 7, week_str, sizeof(week_str));
 			if(i == 0) /* 查询第一张表的部分 */
 			{
-				sprintf(query, "select * from %s_%s where %s >= '%s'", TABLE_NAME, week_str, MYSQL_TIMESTAMP, s_time);
+				sprintf(query, "select %s from %s_%s where %s >= '%s'", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, s_time);
 			}
 			else if(i == interval) /* 查询最后一张表的部分 */
 			{
-				sprintf(query, "select * from %s_%s where %s <= '%s'", TABLE_NAME, week_str, MYSQL_TIMESTAMP, e_time);
+				sprintf(query, "select %s from %s_%s where %s <= '%s'", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, e_time);
 			}
 			else /* 查询其他表的全部 */
 			{
-				sprintf(query, "select * from %s_%s", TABLE_NAME, week_str);
+				sprintf(query, "select %s from %s_%s", column, TABLE_NAME, week_str);
 			}
 			top_query(mysql, query, kind);
 		}
