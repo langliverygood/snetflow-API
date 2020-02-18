@@ -14,6 +14,7 @@ extern "C"
 #endif
 
 static int debug;
+static char *wday[] = {(char *)"Sun", (char *)"Mon", (char *)"Tue", (char *)"Wed", (char *)"Thu", (char *)"Fri", (char *)"Sat"};
 
 /***************************************************************/
 /* 函  数：set_debug ********************************************/
@@ -147,20 +148,31 @@ void ipprotocal_int_to_str(int prot, char *out, int out_len)
 	return;
 }
 
-/*static void get_wday(char *wd, const int len)
+/***************************************************************/
+/* 函  数：get_wday_by_timestamp ********************************/
+/* 说  明：根据时间戳获取星期  (周日是0，...，周六是6) ************/
+/***************************************************************/
+int get_wday_by_timestamp(time_t timep)
 {
-	time_t timep;
     struct tm *p;
-	
-    time(&timep);
+
     p = localtime(&timep);
+
+	return p->tm_wday;
+}
+
+/***************************************************************/
+/* 函  数：wday_int_to_str **************************************/
+/* 说  明：星期整型转字符串 *************************************/
+/***************************************************************/
+void wday_int_to_str(const int w, char *wd, const int len)
+{
 	memset(wd, 0, len);
-	today_int = p->tm_wday;
-	strcpy(wd, wday[today_int]);
+	strcpy(wd, wday[w]);
 
 	return;
 }
-*/
+
 #ifdef __cplusplus
 }
 #endif
