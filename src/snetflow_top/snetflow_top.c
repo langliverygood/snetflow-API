@@ -187,11 +187,11 @@ static int top_query(MYSQL *mysql, const char *query, int kind)
 				ip_addr1.s_addr = htonl((uint32_t)ip1);
 				ip_addr2.s_addr = htonl((uint32_t)ip2);
 				ip_addr3.s_addr = htonl((uint32_t)ip3);
-				sprintf(colloct, "[%s %s]", inet_ntoa(ip_addr1), row[2]);
-				sprintf(s_ip, "%s(%s)", inet_ntoa(ip_addr2), row[4]);
-				sprintf(d_ip, "%s:%s(%s)", inet_ntoa(ip_addr3), row[6], row[7]);
 				ipprotocal_int_to_str((int)prot, prot_str, sizeof(prot_str));
-				sprintf(flow, "%-23s %-39s --> %-45s %s", colloct, s_ip, d_ip, prot_str);	
+				sprintf(colloct, "%s", inet_ntoa(ip_addr1));
+				sprintf(s_ip, "%s", inet_ntoa(ip_addr2));
+				sprintf(d_ip, "%s", inet_ntoa(ip_addr3));
+				sprintf(flow, "[%s %s]%s(%s)-->%s:%s(%s) %s", colloct, row[2], s_ip, row[4], d_ip, row[6], row[7], prot_str);	
 				top_insert(flow_top, flow, bytes);
 			}
 		}
