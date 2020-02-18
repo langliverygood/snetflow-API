@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <getopt.h>
 #include <mysql/mysql.h>
 #include <evhttp.h>
 #include <event.h>
@@ -29,15 +30,76 @@ extern "C"
 {
 #endif
 
+static uint16_t api_port;
 static snetflow_job_s snetflow_job;
+/* 数据库对象 */ 
 static MYSQL mysql_hd;
+static char database_host[32];
+static char database_username[32];
+static char database_password[32];
+static char database_name[32];
+static uint16_t database_port;
 
 /* 程序初始化 */
-static void sneflow_API_init()
+static void sneflow_API_init(int argc, char *argv[])
 {
+	int requirednum, errornum, index;
+	char ret;
+	static struct option long_options[] = {
+        {"API-port", required_argument, 0, 'p'},
+        {"database-host", required_argument, 0, 'h'},
+        {"database-name", required_argument, 0, 'a'},
+		{"database-port", required_argument, 0, 't'},
+		{"debug", no_argument, 0, 'd'},
+        {"version", no_argument, 0, 'v'},
+        {0,0,0,0}
+    };
+		
+    /* 读取命令行中的参数 */
+	sprintf(database_username, "%s", "root");
+    sprintf(database_password, "%s", "toor");
+	requirednum = errornum = 0;
+    optind = optopt = opterr = 0;
+    while ((ret = getopt_long(argc, argv, "p:h:a:t:vd", long_options, &index)) != -1)   
+    {
+        switch (ret)
+        {
+            case 'p':
+                api_port = atoi(optarg);
+                requirednum++;
+                break;
+            case 'h':
+				strncpy(database_host, optarg, sizeof(database_host));
+				requirednum++;
+                break;
+            case 'a':
+                strncpy(database_name, optarg, sizeof(database_name));
+				requirednum++;
+                break;
+			case 't':
+				database_port = atoi(optarg);
+				requirednum++;
+                break;
+            case 'd':
+                set_debug(1);
+                break;
+            case 'v':
+                printf("%s version 1.0 \n Auther：langl5@chinaunicom.cn\n", argv[0]);
+                exit(0);
+                break;
+            default:
+                errornum++;
+                break;
+        }
+    }
+    if(requirednum != 4 || errornum != 0)
+    {
+        printf(ARGUMENTS);
+        exit(-1);
+    }
 	/* 连接数据库 */
 	mysql_init(&mysql_hd);
-	if(!mysql_real_connect(&mysql_hd, "localhost", "root", "toor", "netflow_xx", 0, NULL, 0))
+	if(!mysql_real_connect(&mysql_hd, database_host, database_username, database_password, database_name, database_port, NULL, 0))
 	{
 		myprintf("Failed to connect to Mysql!\n");
 		exit(-1);
@@ -172,7 +234,7 @@ int main(int argc, char *argv[])
 	//初始化
 	http_server = NULL;
 	event_init();
-	sneflow_API_init();
+	sneflow_API_init(argc, argv);
 	//启动http服务端
 	http_server = evhttp_start((const char *)"0.0.0.0", API_PORT);
 	if(http_server == NULL)
@@ -182,7 +244,7 @@ int main(int argc, char *argv[])
 	}
 	
 	/* 设置请求超时时间(s) */
-	evhttp_set_timeout(http_server, 15);
+	evhttp_set_timeout(http_server, 1800);
 	/* 设置事件处理函数，evhttp_set_cb针对每一个事件(请求)注册一个处理函数 */
 	evhttp_set_cb(http_server, "/snetflow-API/top/", http_handler_top, NULL);
 	evhttp_set_cb(http_server, "/snetflow-API/top/search", http_handler_top_search, NULL);

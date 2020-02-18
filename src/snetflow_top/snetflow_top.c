@@ -215,7 +215,7 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 	}
 	mysql_free_result(res);
 	time(&timee);
-	printf("%ld\n", timee - timee);
+	printf("%ld - %ld = %ld\n", timee, times, timee - times);
 	build_response_body_json(kind);
 
 	return top_response_body;

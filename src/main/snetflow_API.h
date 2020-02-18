@@ -10,13 +10,13 @@ extern "C" {
 
 #define ARGUMENTS "\
 Usage:\n\
-$ snetflow        -i <listen interface> -p <listen port>\n\
-                  [--receive-buffer-size <-r> <receive buffer size of UDP socket>]\n\
+$ snetflow-API    [--API-port <-p> <listened port>\n\
                   [--database-host <-h> <database host>]\n\
-                  [--database-name <-1> <database name>]\n\
-                  [--packet-sampling-rate <-3> <sampling rate>]\n\
-                  [--debug <debug message> <-d>]\n\
-$ snetflow        -v\n\
+                  [--database-name <-a> <database name>]\n\
+                  [--database-port <-t> <database port>]\n\
+                  [--debug <-d> <debug message>]\n\
+                  [--version <-v> <version message>]\n\
+$ snetflow-API\
 ©2020 langl5@chinaunicom.cn\n"
 
 #ifdef __cplusplus
