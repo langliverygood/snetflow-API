@@ -8,11 +8,9 @@
 #include "snetflow_top.h"
 #include "grafana_json.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+using namespace std;
 
-static grafana_query_request_s *query_rst;
+static grafana_query_request_s query_rst;
 
 static char *grafana_get_json_item_str(cJSON *obj, const char *tag)
 {
@@ -41,7 +39,43 @@ static void grafana_get_time_from_request(const grafana_query_request_s *rst, ch
 	return;
 }
 
-static char *grafana_query_structured(const char *request_body)
+static void grafana_query_free(grafana_query_request_s *rst)
+{
+	grafana_query_request_target_s *target, *target_next;
+	grafana_query_request_adhoc_filter_s *adhoc_filter, *adhoc_filter_next;
+
+	/* 释放target数组所占空间 */
+	target = rst->targets;
+	if(target)
+	{
+		target_next = target->next;
+		free(target);
+		while(target_next != NULL)
+		{
+			target = target_next;
+			target_next = target_next->next;
+			free(target);
+		}
+	}
+	/* 释放adhoc_filter数组所占空间 */
+	adhoc_filter = rst->adhoc_filters;
+	if(adhoc_filter)
+	{
+		adhoc_filter_next = adhoc_filter->next;
+		free(adhoc_filter);
+		while(adhoc_filter_next != NULL)
+		{
+			adhoc_filter = adhoc_filter_next;
+			adhoc_filter_next = adhoc_filter_next->next;
+			free(adhoc_filter);
+		}
+	}
+	memset(rst, 0, sizeof(grafana_query_request_s));
+
+	return;
+}
+
+static int grafana_query_structured(const char *request_body, grafana_query_request_s *rst)
 {
 	int i, count;
 	cJSON *root, *tmp1, *tmp2, *tmp3;
@@ -52,71 +86,66 @@ static char *grafana_query_structured(const char *request_body)
 	root = cJSON_Parse(request_body);
 	if(!root)
 	{
-		return NULL;
+		return -1;
 	}
-	query_rst = (grafana_query_request_s *)malloc(sizeof(grafana_query_request_s));
-	if(!query_rst)
-	{
-		return NULL;
-	}
-	memset(query_rst, 0, sizeof(grafana_query_request_s));
+	/* 解析之前先释放之前占用的空间 */
+	grafana_query_free(rst);
     /* 解析grafana的query    request，解析结果写入结构体 */
-	query_rst->panelid = cJSON_GetObjectItem(root, "panelId")->valueint;
+	rst->panelid = cJSON_GetObjectItem(root, "panelId")->valueint;
 	tmp1 = cJSON_GetObjectItem(root, "range");
 	tmp2 = cJSON_GetObjectItem(tmp1, "raw");
-	
 	str_value = grafana_get_json_item_str(tmp1, (const char *)"from");
 	if(!str_value)
 	{
-		return NULL;
+		return -1;
 	}
-	strcpy(query_rst->range.from, str_value);
+	strcpy(rst->range.from, str_value);
 	
 	str_value = grafana_get_json_item_str(tmp1, (const char *)"to");
 	if(!str_value)
 	{
-		return NULL;
+		return -1;
 	}
-	strcpy(query_rst->range.to, str_value);
+	strcpy(rst->range.to, str_value);
 	
 	str_value = grafana_get_json_item_str(tmp2, (const char *)"from");
 	if(!str_value)
 	{
-		return NULL;
+		return -1;
 	}
-	strcpy(query_rst->range.raw.from, str_value);
+	strcpy(rst->range.raw.from, str_value);
 	
 	str_value = grafana_get_json_item_str(tmp2, (const char *)"to");
 	if(!str_value)
 	{
-		return NULL;
+		return -1;
 	}
-	strcpy(query_rst->range.raw.to, str_value);
+	strcpy(rst->range.raw.to, str_value);
 	
 	tmp1 = cJSON_GetObjectItem(root, "rangeRaw");
 	str_value = grafana_get_json_item_str(tmp1, (const char *)"from");
 	if(!str_value)
 	{
-		return NULL;
+		return -1;
 	}
-	strcpy(query_rst->range_raw.from, str_value);
+	strcpy(rst->range_raw.from, str_value);
 	
 	str_value = grafana_get_json_item_str(tmp1, (const char *)"to");
 	if(!str_value)
 	{
-		return NULL;
+		return -1;
 	}
-	strcpy(query_rst->range_raw.to, str_value);
+	strcpy(rst->range_raw.to, str_value);
 	
 	str_value = grafana_get_json_item_str(root, (const char *)"interval");
 	if(!str_value)
 	{
-		return NULL;
+		return -1;
 	}
-	strcpy(query_rst->interval, str_value);
+	strcpy(rst->interval, str_value);
 	
-	query_rst->interval_ms = cJSON_GetObjectItem(root, "intervalMs")->valueint;
-	query_rst->max_data_points = cJSON_GetObjectItem(root, "maxDataPoints")->valueint;
+	rst->interval_ms = cJSON_GetObjectItem(root, "intervalMs")->valueint;
+	rst->max_data_points = cJSON_GetObjectItem(root, "maxDataPoints")->valueint;
 	/* 解析targets数组 */
 	tmp1 = cJSON_GetObjectItem(root, "targets");
 	count = cJSON_GetArraySize(tmp1);
@@ -128,21 +157,21 @@ static char *grafana_query_structured(const char *request_body)
 		str_value = grafana_get_json_item_str(tmp2, (const char *)"target");
 		if(!str_value)
 		{
-			return NULL;
+			return -1;
 		}
 		strcpy(target->target, str_value);
 		
 		str_value = grafana_get_json_item_str(tmp2, (const char *)"refId");
 		if(!str_value)
 		{
-			return NULL;
+			return -1;
 		}
 		strcpy(target->refid, str_value);
 		
 		str_value = grafana_get_json_item_str(tmp2, (const char *)"type");
 		if(!str_value)
 		{
-			return NULL;
+			return -1;
 		}
 		strcpy(target->type, str_value);
 		
@@ -152,13 +181,13 @@ static char *grafana_query_structured(const char *request_body)
 			str_value = grafana_get_json_item_str(tmp3, (const char *)"additional");
 			if(!str_value)
 			{
-				return NULL;
+				return -1;
 			}
 			strcpy(target->data.additional, str_value);
 		}
 		if(i == 0)
 		{
-			query_rst->targets = target;
+			rst->targets = target;
 			
 		}
 		else
@@ -178,26 +207,26 @@ static char *grafana_query_structured(const char *request_body)
 		str_value = grafana_get_json_item_str(tmp2, (const char *)"key");
 		if(!str_value)
 		{
-			return NULL;
+			return -1;
 		}
 		strcpy(adhoc_filter->key, str_value);
 		
 		str_value = grafana_get_json_item_str(tmp2, (const char *)"operator");
 		if(!str_value)
 		{
-			return NULL;
+			return -1;
 		}
 		strcpy(adhoc_filter->operator_c, str_value);
 		
 		str_value = grafana_get_json_item_str(tmp2, (const char *)"value");
 		if(!str_value)
 		{
-			return NULL;
+			return -1;
 		}
 		strcpy(adhoc_filter->value, str_value);
 		if(i == 0)
 		{
-			query_rst->adhoc_filters = adhoc_filter;
+			rst->adhoc_filters = adhoc_filter;
 		}
 		else
 		{
@@ -207,44 +236,7 @@ static char *grafana_query_structured(const char *request_body)
 	}
 	cJSON_Delete(root);
 
-	return (char *)query_rst;
-}
-
-static void grafana_query_free()
-{
-	grafana_query_request_target_s *target, *target_next;
-	grafana_query_request_adhoc_filter_s *adhoc_filter, *adhoc_filter_next;
-	if(query_rst)
-	{
-		target = query_rst->targets;
-		if(target)
-		{
-			target_next = target->next;
-			free(target);
-			while(target_next != NULL)
-			{
-				target = target_next;
-				target_next = target_next->next;
-				free(target);
-			}
-		}
-		adhoc_filter = query_rst->adhoc_filters;
-		if(adhoc_filter)
-		{
-			adhoc_filter_next = adhoc_filter->next;
-			free(adhoc_filter);
-			while(adhoc_filter_next != NULL)
-			{
-				adhoc_filter = adhoc_filter_next;
-				adhoc_filter_next = adhoc_filter_next->next;
-				free(adhoc_filter);
-			}
-		}
-		free(query_rst);
-		query_rst = NULL;
-	}
-
-	return;
+	return 0;
 }
 
 char *grafana_build_reponse_search_top()
@@ -266,18 +258,19 @@ char *grafana_build_reponse_search_top()
 
 char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
-	int i, count;
-	long int bytes;
 	char *out, s_time[128], e_time[128], *tag, col_name[32];
 	time_t start_time, end_time;
-	cJSON *root, *out_json, *arrays, *array, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
+	map<string, uint64_t> *top_map;
+	map<string, uint64_t>::iterator it;
+	string s;
+	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
 
-	if(!grafana_query_structured(request_body))
+	if(grafana_query_structured(request_body, &query_rst) != 0)
 	{
 		return NULL;
 	}
-	grafana_get_time_from_request(query_rst, s_time, e_time, sizeof(s_time));
-	tag = query_rst->targets->data.additional;
+	grafana_get_time_from_request(&query_rst, s_time, e_time, sizeof(s_time));
+	tag = query_rst.targets->data.additional;
 	if(tag == NULL)
 	{
 		return NULL;
@@ -288,94 +281,58 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	job->end_time = end_time;
 	/* 根据target拼接json */
 	response_json = cJSON_CreateArray();
-	
 	root = cJSON_CreateObject();
 	cJSON_AddItemToArray(response_json, root);
-	/* rows */
 	rows = cJSON_AddArrayToObject(root, "rows");
+	columns = cJSON_AddArrayToObject(root, "columns");
+	cJSON_AddStringToObject(root, "type", "table");
+	/* rows */
+	memset(col_name, 0, sizeof(col_name));
 	if(!strcasecmp(tag, "flow"))
 	{
-		out = get_top(mysql, start_time, end_time, TOP_FLOW);
-		if(!out)
-		{
-			return NULL;
-		}
-		out_json = cJSON_Parse(out);
-		job->kind = TOP_FLOW;
-		arrays = cJSON_GetObjectItem(out_json, "flow");
-		memset(col_name, 0, sizeof(col_name));
+		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_FLOW);
 		strcpy(col_name, "flow");
 	}
 	else if(!strcasecmp(tag, "src_set"))
 	{
-		out = get_top(mysql, start_time, end_time, TOP_SRC_SET);
-		if(!out)
-		{
-			return NULL;
-		}
-		out_json = cJSON_Parse(out);
-		job->kind = TOP_SRC_SET;
-		arrays = cJSON_GetObjectItem(out_json, "src_set");
-		memset(col_name, 0, sizeof(col_name));
+		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_SRC_SET);
 		strcpy(col_name, "src_set");
 	}
 	else if(!strcasecmp(tag, "dst_set"))
 	{
-		out = get_top(mysql, start_time, end_time, TOP_DST_SET);
-		if(!out)
-		{
-			return NULL;
-		}
-		out_json = cJSON_Parse(out);
-		job->kind = TOP_DST_SET;
-		arrays = cJSON_GetObjectItem(out_json, "dst_set");
-		memset(col_name, 0, sizeof(col_name));
+		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_DST_SET);
 		strcpy(col_name, "dst_set");
 	}
 	else if(!strcasecmp(tag, "src_biz"))
 	{
-		out = get_top(mysql, start_time, end_time, TOP_SRC_BIZ);
-		if(!out)
-		{
-			return NULL;
-		}
-		out_json = cJSON_Parse(out);
-		job->kind = TOP_SRC_BIZ;
-		arrays = cJSON_GetObjectItem(out_json, "src_biz");
-		memset(col_name, 0, sizeof(col_name));
+		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_SRC_BIZ);
 		strcpy(col_name, "src_biz");
 	}
 	else if(!strcasecmp(tag, "dst_biz"))
 	{
-		out = get_top(mysql, start_time, end_time, TOP_DST_BIZ);
-		if(!out)
-		{
-			return NULL;
-		}
-		out_json = cJSON_Parse(out);
-		job->kind = TOP_DST_BIZ;
-		arrays = cJSON_GetObjectItem(out_json, "dst_biz");
-		memset(col_name, 0, sizeof(col_name));
+		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_DST_BIZ);
 		strcpy(col_name, "dst_biz");
 	}
 	else
 	{
 		return NULL;
 	}
-	count = cJSON_GetArraySize(arrays);
-	for(i = 0; i < count; i++)
+	if(!top_map)
 	{
-		array = cJSON_GetArrayItem(arrays, i);
-		json_tag = cJSON_CreateString(cJSON_GetObjectItemCaseSensitive(array, col_name)->valuestring);
-		str_to_long((const char *)(cJSON_GetObjectItemCaseSensitive(array, "bytes")->valuestring), &bytes);
-	    json_bytes = cJSON_CreateNumber(bytes);
+		return NULL;
+	}
+	myprintf("Map Size:%lu\n", top_map->size());
+	for(it = top_map->begin(); it != top_map->end(); it++)  
+	{
+		s = it->first;
+		json_tag = cJSON_CreateString(s.c_str());
+		json_bytes = cJSON_CreateNumber(it->second);
 		row = cJSON_CreateArray();
 	    cJSON_AddItemToArray(row, json_tag);
 	    cJSON_AddItemToArray(row, json_bytes);
    		cJSON_AddItemToArray(rows, row);
 	}
 	/* columns */
-	columns = cJSON_AddArrayToObject(root, "columns");
 	column = cJSON_CreateObject();
 	cJSON_AddStringToObject(column, "text", col_name);
     cJSON_AddStringToObject(column, "type", "string");
@@ -384,18 +341,9 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	cJSON_AddStringToObject(column, "text", "bytes");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
-	/* type */
-	cJSON_AddStringToObject(root, "type", "table");
 	/* 释放空间 */
-	cJSON_Delete(out_json);
-	free(out);
 	out = cJSON_Print(response_json);
 	cJSON_Delete(response_json);
-	grafana_query_free();
 	
 	return out;
 }
-
-#ifdef __cplusplus
-}
-#endif

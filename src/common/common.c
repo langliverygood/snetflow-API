@@ -40,7 +40,7 @@ int myprintf(const char* format, ...)
 	{
 	    va_list vp;
 	    va_start(vp, format);
-	    result = vprintf(format, vp);
+	    result = vfprintf(stdout, format, vp);
 	    va_end(vp);
 	}
 

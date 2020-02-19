@@ -21,7 +21,6 @@
 #include <event2/listener.h>
 
 #include "common.h"
-#include "snetflow_top.h"
 #include "grafana_json.h"
 #include "snetflow_API.h"
 

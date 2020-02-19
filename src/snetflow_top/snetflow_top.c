@@ -4,8 +4,6 @@
 #include <arpa/inet.h>
 #include <mysql/mysql.h>
 #include <cjson/cJSON.h>
-#include <iostream>
-#include <map>
 
 #include "common.h"
 #include "snetflow_top.h"
@@ -54,101 +52,6 @@ static void top_traverse(map<string, uint64_t> my_map)
 	return;
 }
 #endif
-
-/* 构建top自有的json串 */
-static void build_response_body_json(int kind)
-{
-	map<string, uint64_t>::iterator it;
-	char bytes[32];
-	time_t times, timee;
-	string s;
-	cJSON *root, *flow, *src_set, *dst_set, *src_biz, *dst_biz, *tmp;
-
-	root = cJSON_CreateObject();
-	flow = cJSON_AddArrayToObject(root, "flow");
-	src_set = cJSON_AddArrayToObject(root, "src_set");
-	dst_set = cJSON_AddArrayToObject(root, "dst_set");
-	src_biz = cJSON_AddArrayToObject(root, "src_biz");
-	dst_biz = cJSON_AddArrayToObject(root, "dst_biz");
-	time(&times);
-
-    /* 添加流 */
-	if(kind == TOP_FLOW)
-	{
-		myprintf("map size:%lu\n", flow_top.size());
-		for(it = flow_top.begin(); it != flow_top.end(); it++) 
-		{
-			tmp = cJSON_CreateObject();
-	        s = it->first;
-	        cJSON_AddStringToObject(tmp, "flow", s.c_str());
-			sprintf(bytes, "%lu", it->second);
-	        cJSON_AddStringToObject(tmp, "bytes", bytes);
-	        cJSON_AddItemToArray(flow, tmp);
-		}
-	}
-	/* 添加源集群的流量 */
-	if(kind == TOP_SRC_SET)
-	{
-		myprintf("map size:%lu\n", src_set_top.size());
-		for(it = src_set_top.begin(); it != src_set_top.end(); it++) 
-		{
-			tmp = cJSON_CreateObject();
-	        s = it->first;
-	        cJSON_AddStringToObject(tmp, "src_set", s.c_str());
-			sprintf(bytes, "%lu", it->second);
-			cJSON_AddStringToObject(tmp, "bytes", bytes);
-	        cJSON_AddItemToArray(src_set, tmp);
-		}
-	}
-	/* 添加目的集群的流量 */
-	if(kind == TOP_DST_SET)
-	{
-		myprintf("map size:%lu\n", dst_set_top.size());
-		for(it = dst_set_top.begin(); it != dst_set_top.end(); it++) 
-		{
-			tmp = cJSON_CreateObject();
-	        s = it->first;
-	        cJSON_AddStringToObject(tmp, "dst_set", s.c_str());
-	        sprintf(bytes, "%lu", it->second);
-	        cJSON_AddStringToObject(tmp, "bytes", bytes);
-	        cJSON_AddItemToArray(dst_set, tmp);
-		}
-	}
-	/* 添加源业务的流量 */
-	if(kind == TOP_SRC_BIZ)
-	{
-		myprintf("map size:%lu\n", src_biz_top.size());
-		for(it = src_biz_top.begin(); it != src_biz_top.end(); it++) 
-		{
-			tmp = cJSON_CreateObject();
-	        s = it->first;
-	        cJSON_AddStringToObject(tmp, "src_biz", s.c_str());
-	        sprintf(bytes, "%lu", it->second);
-	        cJSON_AddStringToObject(tmp, "bytes", bytes);
-	        cJSON_AddItemToArray(src_biz, tmp);
-		}
-	}
-	/* 添加目的业务的流量 */
-	else if(kind == TOP_DST_BIZ)
-	{
-		myprintf("map size:%lu\n", dst_biz_top.size());
-		for(it = dst_biz_top.begin(); it != dst_biz_top.end(); it++) 
-		{
-			tmp = cJSON_CreateObject();
-	        s = it->first;
-	        cJSON_AddStringToObject(tmp, "dst_biz", s.c_str());
-	        sprintf(bytes, "%lu", it->second);
-	        cJSON_AddStringToObject(tmp, "bytes", bytes);
-	        cJSON_AddItemToArray(dst_biz, tmp);
-		}
-	}
-	time(&timee);
-	myprintf("[Cost %ld seconds]:build top json!\n", timee - times);
-	top_response_body = cJSON_Print(root);
-	cJSON_Delete(root);
-	
-	return;
-}
 
 /* 从数据查询结果，并写入相应的map 中 */
 static int top_query(MYSQL *mysql, const char *query, int kind)
@@ -219,15 +122,17 @@ static int top_query(MYSQL *mysql, const char *query, int kind)
 	mysql_free_result(res);
 	time(&timee);
 	myprintf("[Cost %ld seconds]:%s\n", timee - times, query);
+	
 
 	return 0;
 }
 
-char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
+void *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 {
 	int i, s_week, e_week, interval;
 	char query[1024], s_time[128], e_time[128], week_str[4], column[128];
 	time_t time_now;
+	map<string, uint64_t> *ret;
 	
     /* 每次查询都要将上次的结果清空 */
 	top_init();
@@ -241,7 +146,6 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 	{
 		start_time = end_time - 60 * 60 * 24 * 7;
 	}
-	
 	/* 时间戳转字符串 */
 	timestamp_to_str(start_time, s_time, sizeof(s_time));
 	timestamp_to_str(end_time, e_time, sizeof(e_time));
@@ -258,22 +162,27 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 	if(kind == TOP_FLOW)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_EXPORTER, MYSQL_SOURCEID, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
+        ret = &flow_top;
 	}
 	else if(kind == TOP_SRC_SET)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_SRCSET);
+		ret = &src_set_top;
 	}
 	else if(kind == TOP_DST_SET)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_DSTSET);
+		ret = &dst_set_top;
 	}
 	else if(kind == TOP_SRC_BIZ)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_SRCBIZ);
+		ret = &src_biz_top;
 	}
 	else if(kind == TOP_DST_BIZ)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_DSTBIZ);
+		ret = &dst_biz_top;
 	}
 	else
 	{
@@ -316,7 +225,6 @@ char *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 			top_query(mysql, query, kind);
 		}
 	}
-	build_response_body_json(kind);
+	return (void *)ret;
 
-	return top_response_body;
 }

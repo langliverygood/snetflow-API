@@ -3,10 +3,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct _grafana_query_request_range_raw{
 	char from[128];
 	char to[128];
@@ -50,9 +46,5 @@ typedef struct _grafana_query_request{
 
 char *grafana_build_reponse_search_top();
 char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
