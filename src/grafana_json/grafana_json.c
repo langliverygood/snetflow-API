@@ -258,12 +258,15 @@ char *grafana_build_reponse_search_top()
 
 char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
+	int i;
 	char *out, s_time[128], e_time[128], *tag, col_name[32];
 	time_t start_time, end_time;
 	map<string, uint64_t> *top_map;
 	map<string, uint64_t>::iterator it;
 	string s;
 	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
+	cJSON *prev;
+	time_t times, timee;
 
 	if(grafana_query_structured(request_body, &query_rst) != 0)
 	{
@@ -322,7 +325,8 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 		return NULL;
 	}
 	myprintf("Map Size:%lu\n", top_map->size());
-	for(it = top_map->begin(); it != top_map->end(); it++)  
+	time(&times);
+	for(i = 0, it = top_map->begin(); it != top_map->end(); it++)  
 	{
 		s = it->first;
 		json_tag = cJSON_CreateString(s.c_str());
@@ -330,7 +334,19 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 		row = cJSON_CreateArray();
 	    cJSON_AddItemToArray(row, json_tag);
 	    cJSON_AddItemToArray(row, json_bytes);
-   		cJSON_AddItemToArray(rows, row);
+		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
+		if(i == 0)
+		{
+			i = 1;
+			cJSON_AddItemToArray(rows, row);
+			prev = row;
+		}
+		else
+		{
+			row->prev = prev;
+			prev->next = row;
+			prev = row;
+		}
 	}
 	/* columns */
 	column = cJSON_CreateObject();
@@ -341,6 +357,8 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	cJSON_AddStringToObject(column, "text", "bytes");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
+	time(&timee);
+	myprintf("[Cost %ld seconds]:Create Json.\n", timee - times);
 	/* 释放空间 */
 	out = cJSON_Print(response_json);
 	cJSON_Delete(response_json);
