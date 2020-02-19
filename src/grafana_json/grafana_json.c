@@ -253,8 +253,7 @@ char *grafana_build_reponse_search_top()
 	cJSON *json;
 
 	json = cJSON_CreateArray();
-	cJSON_AddItemToArray(json, cJSON_CreateString("src_ip"));
-	cJSON_AddItemToArray(json, cJSON_CreateString("dst_ip"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("flow"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("src_set"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("dst_set"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("src_biz"));
@@ -271,7 +270,7 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	long int bytes;
 	char *out, s_time[128], e_time[128], *tag, col_name[32];
 	time_t start_time, end_time;
-	cJSON *out_json, *arrays, *array, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
+	cJSON *root, *out_json, *arrays, *array, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
 
 	if(!grafana_query_structured(request_body))
 	{
@@ -288,9 +287,12 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	job->start_time = start_time;
 	job->end_time = end_time;
 	/* 根据target拼接json */
-	response_json = cJSON_CreateObject();
+	response_json = cJSON_CreateArray();
+	
+	root = cJSON_CreateObject();
+	cJSON_AddItemToArray(response_json, root);
 	/* rows */
-	rows = cJSON_AddArrayToObject(response_json, "rows");
+	rows = cJSON_AddArrayToObject(root, "rows");
 	if(!strcasecmp(tag, "flow"))
 	{
 		out = get_top(mysql, start_time, end_time, TOP_FLOW);
@@ -373,7 +375,7 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
    		cJSON_AddItemToArray(rows, row);
 	}
 	/* columns */
-	columns = cJSON_AddArrayToObject(response_json, "columns");
+	columns = cJSON_AddArrayToObject(root, "columns");
 	column = cJSON_CreateObject();
 	cJSON_AddStringToObject(column, "text", col_name);
     cJSON_AddStringToObject(column, "type", "string");
@@ -383,7 +385,7 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
 	/* type */
-	cJSON_AddStringToObject(response_json, "type", "table");
+	cJSON_AddStringToObject(root, "type", "table");
 	/* 释放空间 */
 	cJSON_Delete(out_json);
 	free(out);
