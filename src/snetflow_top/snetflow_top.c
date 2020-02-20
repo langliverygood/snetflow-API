@@ -10,31 +10,12 @@
 
 using namespace std;
 
-static map<string, uint64_t> flow_top;
-static map<string, uint64_t> src_set_top;
-static map<string, uint64_t> dst_set_top;
-static map<string, uint64_t> src_biz_top;
-static map<string, uint64_t> dst_biz_top;
-static char *top_response_body;
-
-static void top_init()
-{
-	top_response_body = NULL;
-	flow_top.clear();
-	src_set_top.clear();
-	dst_set_top.clear();
-	src_biz_top.clear();
-	dst_biz_top.clear();
-
-	return;
-}
-
-static void top_insert(map<string, uint64_t> &my_map, const char *key, uint64_t bytes)
+static void top_insert(map<string, uint64_t> *my_map, const char *key, uint64_t bytes)
 {
 	string k;
 
 	k = key;
-	my_map[k] += bytes;
+	(*my_map)[k] += bytes;
 
 	return;
 }
@@ -54,7 +35,7 @@ static void top_traverse(map<string, uint64_t> my_map)
 #endif
 
 /* 从数据查询结果，并写入相应的map 中 */
-static int top_query(MYSQL *mysql, const char *query, int kind)
+static int top_query(MYSQL *mysql, const char *query, int kind, map<string, uint64_t> *mymap)
 {
 	int flag;
 	char colloct[32], s_ip[64], d_ip[64], flow[512], prot_str[16];
@@ -95,28 +76,13 @@ static int top_query(MYSQL *mysql, const char *query, int kind)
 				sprintf(s_ip, "%s", inet_ntoa(ip_addr2));
 				sprintf(d_ip, "%s", inet_ntoa(ip_addr3));
 				sprintf(flow, "[%s %s]%s(%s)-->%s:%s(%s) %s", colloct, row[2], s_ip, row[4], d_ip, row[6], row[7], prot_str);	
-				top_insert(flow_top, flow, bytes);
+				top_insert(mymap, flow, bytes);
 			}
 		}
-		/* 记录源集群的流量总和 */
-		else if(kind == TOP_SRC_SET)
+		/* 记录源集群/目的集群/源业务/目的业务的流量总和 */
+		else
 		{
-			top_insert(src_set_top, row[1], bytes);
-		}
-		/* 记录目的集群的流量总和 */
-		else if(kind == TOP_DST_SET)
-		{
-			top_insert(dst_set_top, row[1], bytes);
-		}
-		/* 记录源业务的流量总和 */
-			else if(kind == TOP_SRC_BIZ)
-		{
-		top_insert(src_biz_top, row[1], bytes);
-		}
-		/* 记录目的业务的流量总和 */
-		else if(kind == TOP_DST_BIZ)
-		{
-			top_insert(dst_biz_top, row[1], bytes);
+			top_insert(mymap, row[1], bytes);
 		}
 	}
 	mysql_free_result(res);
@@ -127,15 +93,12 @@ static int top_query(MYSQL *mysql, const char *query, int kind)
 	return 0;
 }
 
-void *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
+int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* mymap)
 {
 	int i, s_week, e_week, interval;
 	char query[1024], s_time[128], e_time[128], week_str[4], column[128];
 	time_t time_now;
-	map<string, uint64_t> *ret;
 	
-    /* 每次查询都要将上次的结果清空 */
-	top_init();
 	/* 保证截止时间不超过当前, 时间跨度不超过7天 */
 	time(&time_now);
 	if(end_time > time_now)
@@ -162,38 +125,33 @@ void *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 	if(kind == TOP_FLOW)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_EXPORTER, MYSQL_SOURCEID, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
-        ret = &flow_top;
 	}
 	else if(kind == TOP_SRC_SET)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_SRCSET);
-		ret = &src_set_top;
 	}
 	else if(kind == TOP_DST_SET)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_DSTSET);
-		ret = &dst_set_top;
 	}
 	else if(kind == TOP_SRC_BIZ)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_SRCBIZ);
-		ret = &src_biz_top;
 	}
 	else if(kind == TOP_DST_BIZ)
 	{
-		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_DSTBIZ);
-		ret = &dst_biz_top;
+		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_DSTBIZ);;
 	}
 	else
 	{
-		return NULL;
+		return -1;
 	}
 	/* 当interval=0的时候，有两种情况：1、时间跨度只包含一天。2、时间跨度将近但未到达七天，如：上个周六晚8点到这个周六早10点。*/
 	if(interval == 0)
 	{
 		wday_int_to_str(s_week, week_str, sizeof(week_str));
 		sprintf(query, "select %s from %s_%s where %s >= '%s' and %s <= '%s'", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, s_time, MYSQL_TIMESTAMP, e_time);
-		top_query(mysql, query, kind);
+		top_query(mysql, query, kind, (map<string, uint64_t> *)mymap);
 		/* 如果是第二种情况(时间跨度超过一天), 要查询其他6张表的全部 */
 		if(end_time - start_time > 60 * 60 * 24)
 		{
@@ -201,7 +159,7 @@ void *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 			{
 				wday_int_to_str(i, week_str, sizeof(week_str));
 				sprintf(query, "select %s from %s_%s", column, TABLE_NAME, week_str);
-				top_query(mysql, query, kind);
+				top_query(mysql, query, kind, (map<string, uint64_t> *)mymap);
 			}
 		}
 	}
@@ -222,9 +180,9 @@ void *get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind)
 			{
 				sprintf(query, "select %s from %s_%s", column, TABLE_NAME, week_str);
 			}
-			top_query(mysql, query, kind);
+			top_query(mysql, query, kind, (map<string, uint64_t> *)mymap);
 		}
 	}
-	return (void *)ret;
+	return 0;
 
 }

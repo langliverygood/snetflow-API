@@ -5,7 +5,10 @@
 extern "C" {
 #endif
 
-#define API_BUFFER_SIZE 40960
+#define API_THREADS_NUM  10
+#define API_LISTENED_LEN 1024
+#define API_TIME_OUT     600
+#define API_BUFFER_SIZE  40960
 
 #define ARGUMENTS "\
 Usage:\n\
@@ -17,6 +20,11 @@ $ snetflow-API    [--API-port <-p> <listened port>\n\
                   [--version <-v> <version message>]\n\
 $ snetflow-API\
 ©2020 langl5@chinaunicom.cn\n"
+
+typedef struct _httpd_info_s{
+    struct event_base *base;
+    struct evhttp *httpd;
+}httpd_info_s;
 
 #ifdef __cplusplus
 }

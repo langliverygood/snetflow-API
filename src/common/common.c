@@ -13,7 +13,7 @@ extern "C"
 {
 #endif
 
-static int debug;
+static int debug=1;
 static char *wday[] = {(char *)"Sun", (char *)"Mon", (char *)"Tue", (char *)"Wed", (char *)"Thu", (char *)"Fri", (char *)"Sat"};
 
 /***************************************************************/

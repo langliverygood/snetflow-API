@@ -258,10 +258,10 @@ char *grafana_build_reponse_search_top()
 
 char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
-	int i;
+	int i, ret;
 	char *out, s_time[128], e_time[128], *tag, col_name[32];
 	time_t start_time, end_time;
-	map<string, uint64_t> *top_map;
+	map<string, uint64_t> top_map;
 	map<string, uint64_t>::iterator it;
 	string s;
 	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
@@ -293,40 +293,40 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	memset(col_name, 0, sizeof(col_name));
 	if(!strcasecmp(tag, "flow"))
 	{
-		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_FLOW);
+		ret = get_top(mysql, start_time, end_time, TOP_FLOW, (void *)&top_map);
 		strcpy(col_name, "flow");
 	}
 	else if(!strcasecmp(tag, "src_set"))
 	{
-		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_SRC_SET);
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_SET, (void *)&top_map);
 		strcpy(col_name, "src_set");
 	}
 	else if(!strcasecmp(tag, "dst_set"))
 	{
-		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_DST_SET);
+		ret = get_top(mysql, start_time, end_time, TOP_DST_SET, (void *)&top_map);
 		strcpy(col_name, "dst_set");
 	}
 	else if(!strcasecmp(tag, "src_biz"))
 	{
-		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_SRC_BIZ);
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_BIZ, (void *)&top_map);
 		strcpy(col_name, "src_biz");
 	}
 	else if(!strcasecmp(tag, "dst_biz"))
 	{
-		top_map = (map<string, uint64_t> *)get_top(mysql, start_time, end_time, TOP_DST_BIZ);
+		ret = get_top(mysql, start_time, end_time, TOP_DST_BIZ, (void *)&top_map);
 		strcpy(col_name, "dst_biz");
 	}
 	else
 	{
 		return NULL;
 	}
-	if(!top_map)
+	if(ret != 0)
 	{
 		return NULL;
 	}
-	myprintf("Map Size:%lu\n", top_map->size());
+	myprintf("Map Size:%lu\n", top_map.size());
 	time(&times);
-	for(i = 0, it = top_map->begin(); it != top_map->end(); it++)  
+	for(i = 0, it = top_map.begin(); it != top_map.end(); it++)  
 	{
 		s = it->first;
 		json_tag = cJSON_CreateString(s.c_str());
