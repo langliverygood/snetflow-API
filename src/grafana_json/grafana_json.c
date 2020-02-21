@@ -291,12 +291,7 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	cJSON_AddStringToObject(root, "type", "table");
 	/* rows */
 	memset(col_name, 0, sizeof(col_name));
-	if(!strcasecmp(tag, "flow"))
-	{
-		ret = get_top(mysql, start_time, end_time, TOP_FLOW, (void *)&top_map);
-		strcpy(col_name, "flow");
-	}
-	else if(!strcasecmp(tag, "src_set"))
+	if(!strcasecmp(tag, "src_set"))
 	{
 		ret = get_top(mysql, start_time, end_time, TOP_SRC_SET, (void *)&top_map);
 		strcpy(col_name, "src_set");
@@ -315,6 +310,116 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	{
 		ret = get_top(mysql, start_time, end_time, TOP_DST_BIZ, (void *)&top_map);
 		strcpy(col_name, "dst_biz");
+	}
+	else if(!strcasecmp(tag, "HXQ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_HXQ, (void *)&top_map);
+		strcpy(col_name, "HXQ_in");
+	}
+	else if(!strcasecmp(tag, "HXQ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_HXQ, (void *)&top_map);
+		strcpy(col_name, "HXQ_out");
+	}
+	else if(!strcasecmp(tag, "HXQ_ZB_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_HXQ_ZB, (void *)&top_map);
+		strcpy(col_name, "HXQ_ZB_in");
+	}
+	else if(!strcasecmp(tag, "HXQ_ZB_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_HXQ_ZB, (void *)&top_map);
+		strcpy(col_name, "HXQ_ZB_out");
+	}
+	else if(!strcasecmp(tag, "HXQ_SF_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_HXQ_SF, (void *)&top_map);
+		strcpy(col_name, "HXQ_SF_in");
+	}
+	else if(!strcasecmp(tag, "HXQ_SF_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_HXQ_SF, (void *)&top_map);
+		strcpy(col_name, "HXQ_SF_out");
+	}
+	else if(!strcasecmp(tag, "GLQ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_GLQ, (void *)&top_map);
+		strcpy(col_name, "GLQ_in");
+	}
+	else if(!strcasecmp(tag, "GLQ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_GLQ, (void *)&top_map);
+		strcpy(col_name, "GLQ_out");
+	}
+	else if(!strcasecmp(tag, "RZQ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_RZQ, (void *)&top_map);
+		strcpy(col_name, "RZQ_in");
+	}
+	else if(!strcasecmp(tag, "RZQ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_RZQ, (void *)&top_map);
+		strcpy(col_name, "RZQ_out");
+	}
+	else if(!strcasecmp(tag, "JRQ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_JRQ, (void *)&top_map);
+		strcpy(col_name, "JRQ_in");
+	}
+	else if(!strcasecmp(tag, "JRQ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_JRQ, (void *)&top_map);
+		strcpy(col_name, "JRQ_out");
+	}
+	else if(!strcasecmp(tag, "CSQ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_CSQ, (void *)&top_map);
+		strcpy(col_name, "CSQ_in");
+	}
+	else if(!strcasecmp(tag, "CSQ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_CSQ, (void *)&top_map);
+		strcpy(col_name, "CSQ_out");
+	}
+	else if(!strcasecmp(tag, "DMZ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_DMZ, (void *)&top_map);
+		strcpy(col_name, "DMZ_in");
+	}
+	else if(!strcasecmp(tag, "DMZ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_DMZ, (void *)&top_map);
+		strcpy(col_name, "DMZ_out");
+	}
+	else if(!strcasecmp(tag, "ALQ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_ALQ, (void *)&top_map);
+		strcpy(col_name, "ALQ_in");
+	}
+	else if(!strcasecmp(tag, "ALQ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_ALQ, (void *)&top_map);
+		strcpy(col_name, "ALQ_out");
+	}
+	else if(!strcasecmp(tag, "WBQ_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_WBQ, (void *)&top_map);
+		strcpy(col_name, "WBQ_in");
+	}
+	else if(!strcasecmp(tag, "WBQ_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_WBQ, (void *)&top_map);
+		strcpy(col_name, "WBQ_out");
+	}
+	else if(!strcasecmp(tag, "UNKNOWN_in"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_SRC_UNKNOWN, (void *)&top_map);
+		strcpy(col_name, "UNKNOWN_in");
+	}
+	else if(!strcasecmp(tag, "UNKNOWN_out"))
+	{
+		ret = get_top(mysql, start_time, end_time, TOP_DST_UNKNOWN, (void *)&top_map);
+		strcpy(col_name, "UNKNOWN_out");
 	}
 	else
 	{

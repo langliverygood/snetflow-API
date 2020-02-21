@@ -166,7 +166,7 @@ static void init_snetflow_job(snetflow_job_s *job)
 	return;
 }
 
-/* 打印request信息*/
+/* 打印request信息 */
 static void print_request(struct evhttp_request *req)
 {
 	struct evkeyvalq *headers;
@@ -297,7 +297,8 @@ static void http_handler_top_query(struct evhttp_request *req, void *arg)
 	char *out, *body;
 	snetflow_job_s snetflow_job;
 	MYSQL mysql;
-	
+
+	mysql_thread_init();
 	if(init_mysql(&mysql) != 0)
 	{
 		/* 未知错误 */
@@ -315,6 +316,7 @@ static void http_handler_top_query(struct evhttp_request *req, void *arg)
 	}
 	out = grafana_build_reponse_query_top(&mysql, body, &snetflow_job);
 	mysql_close(&mysql);
+	mysql_thread_end();
 	send_response(req, out, HTTP_OK);
 	if(out)
 	{
