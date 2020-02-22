@@ -205,7 +205,7 @@ char *grafana_build_reponse_search()
 	json = cJSON_CreateArray();
 	cJSON_AddItemToArray(json, cJSON_CreateString("top"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("history"));
-	cJSON_AddItemToArray(json, cJSON_CreateString("increase"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("trend"));
 	json_str = cJSON_Print(json);
 	cJSON_Delete(json);
 
@@ -213,7 +213,7 @@ char *grafana_build_reponse_search()
 }
 
 /* 响应grafana的 query(top) 请求, 返回的指针用完要free */
-char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
+static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
 	int i, ret;
 	char *out, s_time[128], e_time[128], *tag, col_name[32];
@@ -429,3 +429,36 @@ char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, sn
 	
 	return out;
 }
+
+/* 响应grafana的 query(top) 请求, 返回的指针用完要free */
+char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
+{
+	char *target;
+	grafana_query_request_s query_rst;
+
+	if(grafana_query_structured(request_body, &query_rst) != 0)
+	{
+		return NULL;
+	}
+	
+	target = query_rst.targets->target;
+	if(target == NULL)
+	{
+		return NULL;
+	}
+	else if(strcasecmp(target, "top") == 0)
+	{
+		return grafana_build_reponse_query_top(mysql, request_body, job);
+	}
+	else if(strcasecmp(target, "history") == 0)
+	{
+		return NULL;
+	}
+	else if(strcasecmp(target, "trend") == 0)
+	{
+		return NULL;
+	}
+
+	return NULL;
+}
+

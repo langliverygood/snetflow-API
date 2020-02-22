@@ -263,19 +263,19 @@ static void send_response(struct evhttp_request *req, const char *response_body,
 	evhttp_add_header(req->output_headers, "Connection", "close");
 	evhttp_send_reply(req, status_code, "Client", retbuff);
 	evbuffer_free(retbuff);
-	myprintf("%s\n", "Send response success!");
+	myprintf("Send response(status code:%d) success!\n", status_code);
 
 	return;
 }
 
-static void http_handler_top(struct evhttp_request *req, void *arg)
+static void http_handler_root(struct evhttp_request *req, void *arg)
 {
 	send_response(req, NULL, HTTP_OK);
 
 	return;
 }
 
-static void http_handler_top_search(struct evhttp_request *req, void *arg)
+static void http_handler_search(struct evhttp_request *req, void *arg)
 {
 	char *out;
 	snetflow_job_s snetflow_job;
@@ -292,7 +292,7 @@ static void http_handler_top_search(struct evhttp_request *req, void *arg)
 	return;
 }
 
-static void http_handler_top_query(struct evhttp_request *req, void *arg)
+static void http_handler_query(struct evhttp_request *req, void *arg)
 {
 	char *out, *body;
 	snetflow_job_s snetflow_job;
@@ -314,7 +314,7 @@ static void http_handler_top_query(struct evhttp_request *req, void *arg)
 		send_response(req, NULL, HTTP_BADREQUEST);
 		return;
 	}
-	out = grafana_build_reponse_query_top(&mysql, body, &snetflow_job);
+	out = grafana_build_reponse_query(&mysql, body, &snetflow_job);
 	mysql_close(&mysql);
 	mysql_thread_end();
 	send_response(req, out, HTTP_OK);
@@ -379,9 +379,9 @@ int main(int argc, char *argv[])
 		/* 设置请求超时时间(s) */
 		evhttp_set_timeout(pinfo->httpd, API_TIME_OUT);
 		/* 设置事件处理函数，evhttp_set_cb针对每一个事件(请求)注册一个处理函数 */
-		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/", http_handler_top, NULL);
-		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/search", http_handler_top_search, NULL);
-		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/query", http_handler_top_query, NULL);
+		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/", http_handler_root, NULL);
+		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/search", http_handler_search, NULL);
+		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/query", http_handler_query, NULL);
 		/* evhttp_set_gencb函数，是对所有请求设置一个统一的处理函数 */
 		evhttp_set_gencb(pinfo->httpd, http_handler_others, NULL);
         ret = pthread_create(&http_ser_ths[i], NULL, http_dispatch, (void *)pinfo);

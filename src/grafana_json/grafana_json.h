@@ -45,6 +45,6 @@ typedef struct _grafana_query_request{
 }grafana_query_request_s;
 
 char *grafana_build_reponse_search();
-char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job);
+char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetflow_job_s *job);
 
 #endif

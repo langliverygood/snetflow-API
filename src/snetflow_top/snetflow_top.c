@@ -93,7 +93,7 @@ static int top_query(MYSQL *mysql, const char *query, int kind, map<string, uint
 int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* mymap)
 {
 	int i, s_week, e_week, interval;
-	char query[1024], week_str[4];
+	char query[1024], week_str[4], region[16];
 	char column[128], condition[128];
 	time_t time_now;
 
@@ -117,7 +117,8 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 	{
 		interval += 7;
 	}
-	/* 确定要查询的列 */
+	/* 确定查询条件 */
+	memset(region, 0, sizeof(region));
 	if(kind == TOP_SRC_SET)
 	{
 		sprintf(column, "%s,%s", MYSQL_BYTES, MYSQL_SRCSET);
@@ -138,111 +139,133 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_HXQ_CN);
+		sprintf(region, "%s", NET_HXQ);
 	}
 	else if(kind == TOP_DST_HXQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_HXQ_CN);
+		sprintf(region, "%s", NET_HXQ);
 	}
 	else if(kind == TOP_SRC_HXQ_ZB)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_HXQ_ZB_CN);
+		sprintf(region, "%s", NET_HXQ_ZB);
 	}
 	else if(kind == TOP_DST_HXQ_ZB)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_HXQ_ZB_CN);
+		sprintf(region, "%s", NET_HXQ_ZB);
 	}
 	else if(kind == TOP_SRC_HXQ_SF)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_HXQ_SF_CN);
+		sprintf(region, "%s", NET_HXQ_SF);
 	}
 	else if(kind == TOP_DST_HXQ_SF)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_HXQ_SF_CN);
+		sprintf(region, "%s", NET_HXQ_SF);
 	}
 	else if(kind == TOP_SRC_GLQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_GLQ_CN);
+		sprintf(region, "%s", NET_GLQ);
 	}
 	else if(kind == TOP_DST_GLQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_GLQ_CN);
+		sprintf(region, "%s", NET_GLQ);
 	}
 	else if(kind == TOP_SRC_RZQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_RZQ_CN);
+		sprintf(region, "%s", NET_RZQ);
 	}
 	else if(kind == TOP_DST_RZQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_RZQ_CN);
+		sprintf(region, "%s", NET_RZQ);
 	}
 	else if(kind == TOP_SRC_JRQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_JRQ_CN);
+		sprintf(region, "%s", NET_JRQ);
 	}
 	else if(kind == TOP_DST_JRQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_JRQ_CN);
+		sprintf(region, "%s", NET_JRQ);
 	}
 	else if(kind == TOP_SRC_CSQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_CSQ_CN);
+		sprintf(region, "%s", NET_CSQ);
 	}
 	else if(kind == TOP_DST_CSQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_CSQ_CN);
+		sprintf(region, "%s", NET_CSQ);
 	}
 	else if(kind == TOP_SRC_DMZ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_DMZ_CN);
+		sprintf(region, "%s", NET_DMZ);
 	}
 	else if(kind == TOP_DST_DMZ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_DMZ_CN);
+		sprintf(region, "%s", NET_DMZ);
 	}
 	else if(kind == TOP_SRC_ALQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_ALQ_CN);
+		sprintf(region, "%s", NET_ALQ);
 	}
 	else if(kind == TOP_DST_ALQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_ALQ_CN);
+		sprintf(region, "%s", NET_ALQ);
 	}
 	else if(kind == TOP_SRC_WBQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_WBQ_CN);
+		sprintf(region, "%s", NET_WBQ);
 	}
 	else if(kind == TOP_DST_WBQ)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_WBQ_CN);
+		sprintf(region, "%s", NET_WBQ);
 	}
 	else if(kind == TOP_SRC_UNKNOWN)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_UNKNOWN);
+		sprintf(region, "%s", NET_UNKNOWN);
 	}
 	else if(kind == TOP_DST_UNKNOWN)
 	{
 		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
 		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_UNKNOWN);
+		sprintf(region, "%s", NET_UNKNOWN);
 	}
 	else
 	{
@@ -252,7 +275,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 	if(interval == 0)
 	{
 		wday_int_to_str(s_week, week_str, sizeof(week_str));
-		sprintf(query, "select %s from %s_%s where %s >= %lu and %s <= %lu", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, start_time, MYSQL_TIMESTAMP, end_time);
+		sprintf(query, "select %s from %s_%s%s where %s >= %lu and %s <= %lu", column, TABLE_NAME, week_str, region, MYSQL_TIMESTAMP, start_time, MYSQL_TIMESTAMP, end_time);
 		if(strlen(condition) > 0)
 		{
 			strcat(query, " and ");
@@ -265,7 +288,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 			for(i = (s_week + 1) % 7; i != s_week; i = (i + 1) % 7)
 			{
 				wday_int_to_str(i, week_str, sizeof(week_str));
-				sprintf(query, "select %s from %s_%s", column, TABLE_NAME, week_str);
+				sprintf(query, "select %s from %s_%s%s", column, TABLE_NAME, week_str, region);
 				if(strlen(condition) > 0)
 				{
 					strcat(query, " where ");
@@ -282,7 +305,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 			wday_int_to_str((s_week + i) % 7, week_str, sizeof(week_str));
 			if(i == 0) /* 查询第一张表的部分 */
 			{
-				sprintf(query, "select %s from %s_%s where %s >= %lu", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, start_time);
+				sprintf(query, "select %s from %s_%s%s where %s >= %lu", column, TABLE_NAME, week_str, region, MYSQL_TIMESTAMP, start_time);
 				if(strlen(condition) > 0)
 				{
 					strcat(query, " and ");
@@ -291,7 +314,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 			}
 			else if(i == interval) /* 查询最后一张表的部分 */
 			{
-				sprintf(query, "select %s from %s_%s where %s <= %lu", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, end_time);
+				sprintf(query, "select %s from %s_%s%s where %s <= %lu", column, TABLE_NAME, week_str, region, MYSQL_TIMESTAMP, end_time);
 				if(strlen(condition) > 0)
 				{
 					strcat(query, " and ");
@@ -300,7 +323,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 			}
 			else /* 查询其他表的全部 */
 			{
-				sprintf(query, "select %s from %s_%s", column, TABLE_NAME, week_str);
+				sprintf(query, "select %s from %s_%s%s", column, TABLE_NAME, week_str, region);
 				if(strlen(condition) > 0)
 				{
 					strcat(query, " where ");
