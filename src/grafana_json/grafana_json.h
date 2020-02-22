@@ -34,17 +34,17 @@ typedef struct _grafana_query_request_adhoc_filter{
 }grafana_query_request_adhoc_filter_s;
 
 typedef struct _grafana_query_request{
-    uint32_t panelid;
+    int panelid;
 	grafana_query_request_range_s range;
 	grafana_query_request_range_raw_s range_raw;
 	char interval[128];
-	uint32_t interval_ms;
-	uint32_t max_data_points;
+	int interval_ms;
+	int max_data_points;
 	grafana_query_request_target_s *targets;
 	grafana_query_request_adhoc_filter_s *adhoc_filters;
 }grafana_query_request_s;
 
-char *grafana_build_reponse_search_top();
+char *grafana_build_reponse_search();
 char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job);
 
 #endif

@@ -10,19 +10,37 @@
 
 using namespace std;
 
-static char *grafana_get_json_item_str(cJSON *obj, const char *tag)
+/* 从CJSON结构中获取某个整数值,  返回值0代表成功(写到参数buf中), -1代表失败。 */
+static int grafana_get_json_item_int(cJSON *obj, const char *tag, int *buf)
 {
 	cJSON *item;
-	
-	item = cJSON_GetObjectItem(obj, tag);
-	if(!item)
-	{
-		return NULL;
-	}
 
-	return item->valuestring;
+	item = cJSON_GetObjectItem(obj, tag);
+	if(item)
+	{
+		*buf = item->valueint;
+		return 0;
+	}
+	
+	return -1;
 }
 
+/* 从CJSON结构中获取某个字符串,写到参数buf中,可能为空 */
+static void grafana_get_json_item_str(cJSON *obj, const char *tag, char *buf, const int buf_len)
+{
+	cJSON *item;
+
+	memset(buf, 0, buf_len);
+	item = cJSON_GetObjectItem(obj, tag);
+	if(item)
+	{
+		strncpy(buf, item->valuestring, buf_len - 1);
+	}
+	
+	return;
+}
+
+/* 从grafana的请求参数中获取时间段 */
 static void grafana_get_time_from_request(const grafana_query_request_s *rst, char *start_time, char *end_time, int time_len)
 {
 	memset(start_time, 0, time_len);
@@ -37,6 +55,7 @@ static void grafana_get_time_from_request(const grafana_query_request_s *rst, ch
 	return;
 }
 
+/* 释放结构体中申请的空间 */
 static void grafana_query_free(grafana_query_request_s *rst)
 {
 	grafana_query_request_target_s *target, *target_next;
@@ -73,155 +92,92 @@ static void grafana_query_free(grafana_query_request_s *rst)
 	return;
 }
 
+/* 将grafana请求的JSON结构化,可能会额外申请空间,用完后要释放 */
 static int grafana_query_structured(const char *request_body, grafana_query_request_s *rst)
 {
 	int i, count;
 	cJSON *root, *tmp1, *tmp2, *tmp3;
-	char *str_value;
 	grafana_query_request_target_s *target, *target_tmp;
 	grafana_query_request_adhoc_filter_s *adhoc_filter, *adhoc_filter_tmp;
-	
+
+	memset(rst, 0, sizeof(grafana_query_request_s));
 	root = cJSON_Parse(request_body);
 	if(!root)
 	{
 		return -1;
 	}
-	/* 解析之前先释放之前占用的空间 */
-	grafana_query_free(rst);
     /* 解析grafana的query    request，解析结果写入结构体 */
-	rst->panelid = cJSON_GetObjectItem(root, "panelId")->valueint;
+	grafana_get_json_item_int(root, "panelId", &(rst->panelid));
 	tmp1 = cJSON_GetObjectItem(root, "range");
+	if(!tmp1)
+	{
+		return -1;
+	}
 	tmp2 = cJSON_GetObjectItem(tmp1, "raw");
-	str_value = grafana_get_json_item_str(tmp1, (const char *)"from");
-	if(!str_value)
+	if(!tmp2)
 	{
 		return -1;
 	}
-	strcpy(rst->range.from, str_value);
-	
-	str_value = grafana_get_json_item_str(tmp1, (const char *)"to");
-	if(!str_value)
-	{
-		return -1;
-	}
-	strcpy(rst->range.to, str_value);
-	
-	str_value = grafana_get_json_item_str(tmp2, (const char *)"from");
-	if(!str_value)
-	{
-		return -1;
-	}
-	strcpy(rst->range.raw.from, str_value);
-	
-	str_value = grafana_get_json_item_str(tmp2, (const char *)"to");
-	if(!str_value)
-	{
-		return -1;
-	}
-	strcpy(rst->range.raw.to, str_value);
-	
+	grafana_get_json_item_str(tmp1, (const char *)"from", rst->range.from, sizeof(rst->range.from));
+	grafana_get_json_item_str(tmp1, (const char *)"to", rst->range.to, sizeof(rst->range.to));
+	grafana_get_json_item_str(tmp2, (const char *)"from", rst->range.raw.from, sizeof(rst->range.raw.from));
+	grafana_get_json_item_str(tmp2, (const char *)"to", rst->range.raw.to, sizeof(rst->range.raw.to));
 	tmp1 = cJSON_GetObjectItem(root, "rangeRaw");
-	str_value = grafana_get_json_item_str(tmp1, (const char *)"from");
-	if(!str_value)
+	if(!tmp1)
 	{
 		return -1;
 	}
-	strcpy(rst->range_raw.from, str_value);
-	
-	str_value = grafana_get_json_item_str(tmp1, (const char *)"to");
-	if(!str_value)
-	{
-		return -1;
-	}
-	strcpy(rst->range_raw.to, str_value);
-	
-	str_value = grafana_get_json_item_str(root, (const char *)"interval");
-	if(!str_value)
-	{
-		return -1;
-	}
-	strcpy(rst->interval, str_value);
-	
-	rst->interval_ms = cJSON_GetObjectItem(root, "intervalMs")->valueint;
-	rst->max_data_points = cJSON_GetObjectItem(root, "maxDataPoints")->valueint;
+	grafana_get_json_item_str(tmp1, (const char *)"from", rst->range_raw.from, sizeof(rst->range_raw.from));
+	grafana_get_json_item_str(tmp1, (const char *)"to", rst->range_raw.to, sizeof(rst->range_raw.to));
+	grafana_get_json_item_str(root, (const char *)"interval", rst->interval, sizeof(rst->interval));
+	grafana_get_json_item_int(root, (const char *)"intervalMs", &(rst->interval_ms));
+	grafana_get_json_item_int(root, (const char *)"maxDataPoints", &(rst->max_data_points));
 	/* 解析targets数组 */
 	tmp1 = cJSON_GetObjectItem(root, "targets");
+	if(!tmp1)
+	{
+		return -1;
+	}
 	count = cJSON_GetArraySize(tmp1);
 	for(i = 0; i < count; i++)
 	{
 		tmp2 = cJSON_GetArrayItem(tmp1, i);
 		target = (grafana_query_request_target_s *)malloc(sizeof(grafana_query_request_target_s));
 		memset(target, 0, sizeof(grafana_query_request_target_s));
-		str_value = grafana_get_json_item_str(tmp2, (const char *)"target");
-		if(!str_value)
-		{
-			return -1;
-		}
-		strcpy(target->target, str_value);
-		
-		str_value = grafana_get_json_item_str(tmp2, (const char *)"refId");
-		if(!str_value)
-		{
-			return -1;
-		}
-		strcpy(target->refid, str_value);
-		
-		str_value = grafana_get_json_item_str(tmp2, (const char *)"type");
-		if(!str_value)
-		{
-			return -1;
-		}
-		strcpy(target->type, str_value);
-		
-		tmp3 = cJSON_GetObjectItem(tmp2, "data");
-		if(tmp3)
-		{
-			str_value = grafana_get_json_item_str(tmp3, (const char *)"additional");
-			if(!str_value)
-			{
-				return -1;
-			}
-			strcpy(target->data.additional, str_value);
-		}
 		if(i == 0)
 		{
 			rst->targets = target;
-			
 		}
 		else
 		{
 			target_tmp->next = target;
 		}
 		target_tmp = target;
+		grafana_get_json_item_str(tmp2, (const char *)"target", target->target, sizeof(target->target));
+		grafana_get_json_item_str(tmp2, (const char *)"refId", target->refid, sizeof(target->target));
+		grafana_get_json_item_str(tmp2, (const char *)"type", target->type, sizeof(target->target));
+		grafana_get_json_item_str(tmp2, (const char *)"target", target->target, sizeof(target->target));
+		tmp3 = cJSON_GetObjectItem(tmp2, "data");
+		if(!tmp3)
+		{
+			grafana_query_free(rst);
+			return -1;
+		}
+		grafana_get_json_item_str(tmp3, (const char *)"additional", target->data.additional, sizeof(target->data.additional));
 	}
 	/* 解析adhoc_filters数组 */
 	tmp1 = cJSON_GetObjectItem(root, "adhocFilters");
+	if(!tmp1)
+	{
+		grafana_query_free(rst);
+		return -1;
+	}
 	count = cJSON_GetArraySize(tmp1);
 	for(i = 0; i < count; i++)
 	{
 		tmp2 = cJSON_GetArrayItem(tmp1, i);
 		adhoc_filter = (grafana_query_request_adhoc_filter_s *)malloc(sizeof(grafana_query_request_adhoc_filter_s));
 		memset(adhoc_filter, 0, sizeof(grafana_query_request_adhoc_filter_s));
-		str_value = grafana_get_json_item_str(tmp2, (const char *)"key");
-		if(!str_value)
-		{
-			return -1;
-		}
-		strcpy(adhoc_filter->key, str_value);
-		
-		str_value = grafana_get_json_item_str(tmp2, (const char *)"operator");
-		if(!str_value)
-		{
-			return -1;
-		}
-		strcpy(adhoc_filter->operator_c, str_value);
-		
-		str_value = grafana_get_json_item_str(tmp2, (const char *)"value");
-		if(!str_value)
-		{
-			return -1;
-		}
-		strcpy(adhoc_filter->value, str_value);
 		if(i == 0)
 		{
 			rst->adhoc_filters = adhoc_filter;
@@ -231,29 +187,32 @@ static int grafana_query_structured(const char *request_body, grafana_query_requ
 			adhoc_filter_tmp->next = adhoc_filter;
 		}
 		adhoc_filter_tmp = adhoc_filter;
+		grafana_get_json_item_str(tmp2, (const char *)"key", adhoc_filter->key, sizeof(adhoc_filter->key));
+		grafana_get_json_item_str(tmp2, (const char *)"operator", adhoc_filter->operator_c, sizeof(adhoc_filter->operator_c));
+		grafana_get_json_item_str(tmp2, (const char *)"value", adhoc_filter->value, sizeof(adhoc_filter->value));
 	}
 	cJSON_Delete(root);
 
 	return 0;
 }
 
-char *grafana_build_reponse_search_top()
+/* 响应grafana的 search 请求, 返回的指针用完要free */
+char *grafana_build_reponse_search()
 {
 	char *json_str;
 	cJSON *json;
 
 	json = cJSON_CreateArray();
-	cJSON_AddItemToArray(json, cJSON_CreateString("flow"));
-	cJSON_AddItemToArray(json, cJSON_CreateString("src_set"));
-	cJSON_AddItemToArray(json, cJSON_CreateString("dst_set"));
-	cJSON_AddItemToArray(json, cJSON_CreateString("src_biz"));
-	cJSON_AddItemToArray(json, cJSON_CreateString("dst_biz"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("top"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("history"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("increase"));
 	json_str = cJSON_Print(json);
 	cJSON_Delete(json);
 
 	return json_str;
 }
 
+/* 响应grafana的 query(top) 请求, 返回的指针用完要free */
 char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
 	int i, ret;

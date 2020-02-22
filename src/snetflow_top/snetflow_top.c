@@ -93,7 +93,7 @@ static int top_query(MYSQL *mysql, const char *query, int kind, map<string, uint
 int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* mymap)
 {
 	int i, s_week, e_week, interval;
-	char query[1024], s_time[128], e_time[128], week_str[4];
+	char query[1024], week_str[4];
 	char column[128], condition[128];
 	time_t time_now;
 
@@ -282,7 +282,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 			wday_int_to_str((s_week + i) % 7, week_str, sizeof(week_str));
 			if(i == 0) /* 查询第一张表的部分 */
 			{
-				sprintf(query, "select %s from %s_%s where %s >= '%s'", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, s_time);
+				sprintf(query, "select %s from %s_%s where %s >= %lu", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, start_time);
 				if(strlen(condition) > 0)
 				{
 					strcat(query, " and ");
@@ -291,7 +291,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* my
 			}
 			else if(i == interval) /* 查询最后一张表的部分 */
 			{
-				sprintf(query, "select %s from %s_%s where %s <= '%s'", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, e_time);
+				sprintf(query, "select %s from %s_%s where %s <= %lu", column, TABLE_NAME, week_str, MYSQL_TIMESTAMP, end_time);
 				if(strlen(condition) > 0)
 				{
 					strcat(query, " and ");

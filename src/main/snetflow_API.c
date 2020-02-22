@@ -282,7 +282,7 @@ static void http_handler_top_search(struct evhttp_request *req, void *arg)
 	
 	init_snetflow_job(&snetflow_job);
 	snetflow_job.job_id = 1;
-	out = grafana_build_reponse_search_top();
+	out = grafana_build_reponse_search();
 	send_response(req, out, HTTP_OK);
 	if(out)
 	{
