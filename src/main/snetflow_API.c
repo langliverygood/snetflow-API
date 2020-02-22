@@ -48,7 +48,7 @@ static int init_mysql(MYSQL *mysql)
 	mysql_init(mysql);
 	if(!mysql_real_connect(mysql, database_host, database_username, database_password, database_name, database_port, NULL, 0))
 	{
-		myprintf("Failed to connect to Mysql!\n");
+		myprintf("Failed to connect to Mysql: %s\n", mysql_error(mysql));
 		return -1;
 	}
     if(mysql_set_character_set(mysql, "utf8"))
