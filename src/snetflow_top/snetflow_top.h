@@ -32,6 +32,6 @@
 #define TOP_SRC_UNKNOWN 25
 #define TOP_DST_UNKNOWN 26
 
-int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* mymap);
+int get_top(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* top_map);
 
 #endif

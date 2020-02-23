@@ -6,6 +6,8 @@
 
 #include "common.h"
 #include "snetflow_top.h"
+#include "snetflow_history.h"
+#include "snetflow_trend.h"
 #include "grafana_json.h"
 
 using namespace std;
@@ -213,7 +215,7 @@ char *grafana_build_reponse_search()
 }
 
 /* 响应grafana的 query(top) 请求, 返回的指针用完要free */
-static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
+static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
 {
 	int i, ret;
 	char *out, s_time[128], e_time[128], *tag, col_name[32];
@@ -430,7 +432,332 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 	return out;
 }
 
-/* 响应grafana的 query(top) 请求, 返回的指针用完要free */
+/* 响应grafana的 query(history) 请求, 返回的指针用完要free */
+static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
+{
+	int i, ret;
+	char *out, s_time[128], e_time[128], *tag, col_name[32];
+	time_t start_time, end_time;
+	vector<history_s> history_vec;
+	vector<history_s>::iterator it;
+	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_flow, *json_bytes;
+	cJSON *prev;
+	time_t times, timee;
+	
+	grafana_get_time_from_request(rst, s_time, e_time, sizeof(s_time));
+	tag = rst->targets->data.additional;
+	if(tag == NULL)
+	{
+		return NULL;
+	}
+	start_time = timestr_to_stamp(s_time);
+	end_time = timestr_to_stamp(e_time);
+	job->start_time = start_time;
+	job->end_time = end_time;
+	memset(col_name, 0, sizeof(col_name));
+	if(!strcasecmp(tag, "HXQ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_HXQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "HXQ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_HXQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "HXQ_ZB_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_HXQ_ZB, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "HXQ_ZB_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_HXQ_ZB, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "HXQ_SF_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_HXQ_SF, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "HXQ_SF_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_HXQ_SF, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "GLQ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_GLQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "GLQ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_GLQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "RZQ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_RZQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "RZQ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_RZQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "JRQ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_JRQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "JRQ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_JRQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "CSQ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_CSQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "CSQ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_CSQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "DMZ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_DMZ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "DMZ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_DMZ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "ALQ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_ALQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "ALQ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_ALQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "WBQ_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_WBQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "WBQ_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_WBQ, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "UNKNOWN_in"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_DST_UNKNOWN, (void *)&history_vec);
+	}
+	else if(!strcasecmp(tag, "UNKNOWN_out"))
+	{
+		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_UNKNOWN, (void *)&history_vec);
+	}
+	else
+	{
+		return NULL;
+	}
+	if(ret != 0)
+	{
+		return NULL;
+	}
+	myprintf("Vector Size:%lu\n", history_vec.size());
+	time(&times);
+	/* 根据target拼接json */
+	response_json = cJSON_CreateArray();
+	root = cJSON_CreateObject();
+	cJSON_AddItemToArray(response_json, root);
+	rows = cJSON_AddArrayToObject(root, "rows");
+	columns = cJSON_AddArrayToObject(root, "columns");
+	cJSON_AddStringToObject(root, "type", "table");
+	/* rows */
+	for(i = 0, it = history_vec.begin(); it != history_vec.end(); it++)  
+	{
+		json_flow = cJSON_CreateString((*it).flow);
+		json_bytes = cJSON_CreateNumber((*it).bytes);
+		row = cJSON_CreateArray();
+	    cJSON_AddItemToArray(row, json_flow);
+	    cJSON_AddItemToArray(row, json_bytes);
+		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
+		if(i == 0)
+		{
+			i = 1;
+			cJSON_AddItemToArray(rows, row);
+			prev = row;
+		}
+		else
+		{
+			row->prev = prev;
+			prev->next = row;
+			prev = row;
+		}
+	}
+	/* columns */
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "flow");
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+    column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "bytes");
+    cJSON_AddStringToObject(column, "type", "number");
+	cJSON_AddItemToArray(columns, column);
+	time(&timee);
+	myprintf("[Cost %ld seconds]:Create Json.\n", timee - times);
+	/* 释放空间 */
+	out = cJSON_Print(response_json);
+	cJSON_Delete(response_json);
+	
+	return out;
+}
+
+/* 响应grafana的 query(trend) 请求, 返回的指针用完要free */
+static char *grafana_build_reponse_query_trend(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
+{
+	int i, ret;
+	char *out, s_time[128], e_time[128], *tag;
+	time_t start_time, end_time;
+	map<uint64_t, uint64_t> trend_map;
+	map<uint64_t, uint64_t>::iterator it;
+	cJSON *root, *response_json, *datapoints, *datapoint, *json_time, *json_bytes;
+	cJSON *prev;
+	time_t times, timee;
+	
+	grafana_get_time_from_request(rst, s_time, e_time, sizeof(s_time));
+	tag = rst->targets->data.additional;
+	if(tag == NULL)
+	{
+		return NULL;
+	}
+	start_time = timestr_to_stamp(s_time);
+	end_time = timestr_to_stamp(e_time);
+	job->start_time = start_time;
+	job->end_time = end_time;
+	if(!strcasecmp(tag, "HXQ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_HXQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "HXQ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_HXQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "HXQ_ZB_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_HXQ_ZB, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "HXQ_ZB_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_HXQ_ZB, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "HXQ_SF_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_HXQ_SF, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "HXQ_SF_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_HXQ_SF, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "GLQ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_GLQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "GLQ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_GLQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "RZQ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_RZQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "RZQ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_RZQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "JRQ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_JRQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "JRQ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_JRQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "CSQ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_CSQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "CSQ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_CSQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "DMZ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_DMZ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "DMZ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_DMZ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "ALQ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_ALQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "ALQ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_ALQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "WBQ_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_WBQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "WBQ_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_WBQ, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "UNKNOWN_in"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_DST_UNKNOWN, (void *)&trend_map);
+	}
+	else if(!strcasecmp(tag, "UNKNOWN_out"))
+	{
+		ret = get_trend(mysql, start_time, end_time, TREND_SRC_UNKNOWN, (void *)&trend_map);
+	}
+	else
+	{
+		return NULL;
+	}
+	if(ret != 0)
+	{
+		return NULL;
+	}
+	myprintf("Map Size:%lu\n", trend_map.size());
+	time(&times);
+	/* 根据target拼接json */
+	response_json = cJSON_CreateArray();
+	root = cJSON_CreateObject();
+	cJSON_AddItemToArray(response_json, root);
+	cJSON_AddStringToObject(root, "target", "trend");
+	datapoints = cJSON_AddArrayToObject(root, "datapoints");
+	/* datapoints */
+	for(i = 0, it = trend_map.begin(); it != trend_map.end(); it++)  
+	{
+		json_time = cJSON_CreateNumber(it->first * 1000);
+		json_bytes = cJSON_CreateNumber(it->second);
+		datapoint = cJSON_CreateArray();
+	    cJSON_AddItemToArray(datapoint, json_bytes);
+	    cJSON_AddItemToArray(datapoint, json_time);
+		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
+		if(i == 0)
+		{
+			i = 1;
+			cJSON_AddItemToArray(datapoints, datapoint);
+			prev = datapoint;
+		}
+		else
+		{
+			datapoint->prev = prev;
+			prev->next = datapoint;
+			prev = datapoint;
+		}
+	}
+	time(&timee);
+	myprintf("[Cost %ld seconds]:Create Json.\n", timee - times);
+	/* 释放空间 */
+	out = cJSON_Print(response_json);
+	cJSON_Delete(response_json);
+	
+	return out;
+}
+
+/* 响应grafana的 query 请求, 返回的指针用完要free */
 char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
 	char *target;
@@ -448,15 +775,15 @@ char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetfl
 	}
 	else if(strcasecmp(target, "top") == 0)
 	{
-		return grafana_build_reponse_query_top(mysql, request_body, job);
+		return grafana_build_reponse_query_top(mysql, request_body, &query_rst, job);
 	}
 	else if(strcasecmp(target, "history") == 0)
 	{
-		return NULL;
+		return grafana_build_reponse_query_history(mysql, request_body, &query_rst, job);
 	}
 	else if(strcasecmp(target, "trend") == 0)
 	{
-		return NULL;
+		return grafana_build_reponse_query_trend(mysql, request_body, &query_rst, job);
 	}
 
 	return NULL;
