@@ -70,6 +70,7 @@ static void sneflow_API_init(int argc, char *argv[])
         {"database-host", required_argument, 0, 'h'},
         {"database-name", required_argument, 0, 'a'},
 		{"database-port", required_argument, 0, 't'},
+		{"time-change", required_argument, 0, 'c'},
 		{"debug", no_argument, 0, 'd'},
         {"version", no_argument, 0, 'v'},
         {0,0,0,0}
@@ -80,7 +81,7 @@ static void sneflow_API_init(int argc, char *argv[])
     sprintf(database_password, "%s", "toor");
 	requirednum = errornum = 0;
     optind = optopt = opterr = 0;
-    while ((ret = getopt_long(argc, argv, "p:h:a:t:vd", long_options, &index)) != -1)   
+    while ((ret = getopt_long(argc, argv, "p:h:a:t:c:vd", long_options, &index)) != -1)   
     {
         switch (ret)
         {
@@ -98,7 +99,9 @@ static void sneflow_API_init(int argc, char *argv[])
                 break;
 			case 't':
 				database_port = atoi(optarg);
-				requirednum++;
+                break;
+			case 'c':
+				set_timechange(atoi(optarg));
                 break;
             case 'd':
                 set_debug(1);
@@ -112,7 +115,7 @@ static void sneflow_API_init(int argc, char *argv[])
                 break;
         }
     }
-    if(requirednum != 4 || errornum != 0)
+    if(requirednum != 3 || errornum != 0)
     {
         printf(ARGUMENTS);
         exit(-1);

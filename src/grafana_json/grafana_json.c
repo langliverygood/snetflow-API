@@ -218,31 +218,18 @@ char *grafana_build_reponse_search()
 static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
 {
 	int i, ret;
-	char *out, s_time[128], e_time[128], *tag, col_name[32];
-	time_t start_time, end_time;
+	char *out, *tag, col_name[32];
 	map<string, uint64_t> top_map;
 	map<string, uint64_t>::iterator it;
 	string s;
-	grafana_query_request_s query_rst;
 	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
 	cJSON *prev;
-	time_t times, timee;
 	
-
-	if(grafana_query_structured(request_body, &query_rst) != 0)
-	{
-		return NULL;
-	}
-	grafana_get_time_from_request(&query_rst, s_time, e_time, sizeof(s_time));
-	tag = query_rst.targets->data.additional;
+	tag = rst->targets->data.additional;
 	if(tag == NULL)
 	{
 		return NULL;
 	}
-	start_time = timestr_to_stamp(s_time);
-	end_time = timestr_to_stamp(e_time);
-	job->start_time = start_time;
-	job->end_time = end_time;
 	/* 根据target拼接json */
 	response_json = cJSON_CreateArray();
 	root = cJSON_CreateObject();
@@ -254,132 +241,132 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 	memset(col_name, 0, sizeof(col_name));
 	if(!strcasecmp(tag, "src_set"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_SET, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_SET, (void *)&top_map);
 		strcpy(col_name, "src_set");
 	}
 	else if(!strcasecmp(tag, "dst_set"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_SET, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_SET, (void *)&top_map);
 		strcpy(col_name, "dst_set");
 	}
 	else if(!strcasecmp(tag, "src_biz"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_BIZ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_BIZ, (void *)&top_map);
 		strcpy(col_name, "src_biz");
 	}
 	else if(!strcasecmp(tag, "dst_biz"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_BIZ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_BIZ, (void *)&top_map);
 		strcpy(col_name, "dst_biz");
 	}
 	else if(!strcasecmp(tag, "HXQ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_HXQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_HXQ, (void *)&top_map);
 		strcpy(col_name, "HXQ_in");
 	}
 	else if(!strcasecmp(tag, "HXQ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_HXQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_HXQ, (void *)&top_map);
 		strcpy(col_name, "HXQ_out");
 	}
 	else if(!strcasecmp(tag, "HXQ_ZB_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_HXQ_ZB, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_HXQ_ZB, (void *)&top_map);
 		strcpy(col_name, "HXQ_ZB_in");
 	}
 	else if(!strcasecmp(tag, "HXQ_ZB_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_HXQ_ZB, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_HXQ_ZB, (void *)&top_map);
 		strcpy(col_name, "HXQ_ZB_out");
 	}
 	else if(!strcasecmp(tag, "HXQ_SF_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_HXQ_SF, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_HXQ_SF, (void *)&top_map);
 		strcpy(col_name, "HXQ_SF_in");
 	}
 	else if(!strcasecmp(tag, "HXQ_SF_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_HXQ_SF, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_HXQ_SF, (void *)&top_map);
 		strcpy(col_name, "HXQ_SF_out");
 	}
 	else if(!strcasecmp(tag, "GLQ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_GLQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_GLQ, (void *)&top_map);
 		strcpy(col_name, "GLQ_in");
 	}
 	else if(!strcasecmp(tag, "GLQ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_GLQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_GLQ, (void *)&top_map);
 		strcpy(col_name, "GLQ_out");
 	}
 	else if(!strcasecmp(tag, "RZQ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_RZQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_RZQ, (void *)&top_map);
 		strcpy(col_name, "RZQ_in");
 	}
 	else if(!strcasecmp(tag, "RZQ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_RZQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_RZQ, (void *)&top_map);
 		strcpy(col_name, "RZQ_out");
 	}
 	else if(!strcasecmp(tag, "JRQ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_JRQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_JRQ, (void *)&top_map);
 		strcpy(col_name, "JRQ_in");
 	}
 	else if(!strcasecmp(tag, "JRQ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_JRQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_JRQ, (void *)&top_map);
 		strcpy(col_name, "JRQ_out");
 	}
 	else if(!strcasecmp(tag, "CSQ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_CSQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_CSQ, (void *)&top_map);
 		strcpy(col_name, "CSQ_in");
 	}
 	else if(!strcasecmp(tag, "CSQ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_CSQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_CSQ, (void *)&top_map);
 		strcpy(col_name, "CSQ_out");
 	}
 	else if(!strcasecmp(tag, "DMZ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_DMZ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_DMZ, (void *)&top_map);
 		strcpy(col_name, "DMZ_in");
 	}
 	else if(!strcasecmp(tag, "DMZ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_DMZ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_DMZ, (void *)&top_map);
 		strcpy(col_name, "DMZ_out");
 	}
 	else if(!strcasecmp(tag, "ALQ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_ALQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_ALQ, (void *)&top_map);
 		strcpy(col_name, "ALQ_in");
 	}
 	else if(!strcasecmp(tag, "ALQ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_ALQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_ALQ, (void *)&top_map);
 		strcpy(col_name, "ALQ_out");
 	}
 	else if(!strcasecmp(tag, "WBQ_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_WBQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_WBQ, (void *)&top_map);
 		strcpy(col_name, "WBQ_in");
 	}
 	else if(!strcasecmp(tag, "WBQ_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_WBQ, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_WBQ, (void *)&top_map);
 		strcpy(col_name, "WBQ_out");
 	}
 	else if(!strcasecmp(tag, "UNKNOWN_in"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_DST_UNKNOWN, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_UNKNOWN, (void *)&top_map);
 		strcpy(col_name, "UNKNOWN_in");
 	}
 	else if(!strcasecmp(tag, "UNKNOWN_out"))
 	{
-		ret = get_top(mysql, start_time, end_time, TOP_SRC_UNKNOWN, (void *)&top_map);
+		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_UNKNOWN, (void *)&top_map);
 		strcpy(col_name, "UNKNOWN_out");
 	}
 	else
@@ -391,7 +378,6 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 		return NULL;
 	}
 	myprintf("Map Size:%lu\n", top_map.size());
-	time(&times);
 	for(i = 0, it = top_map.begin(); it != top_map.end(); it++)  
 	{
 		s = it->first;
@@ -423,8 +409,6 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 	cJSON_AddStringToObject(column, "text", "bytes");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
-	time(&timee);
-	myprintf("[Cost %ld seconds]:Create Json.\n", timee - times);
 	/* 释放空间 */
 	out = cJSON_Print(response_json);
 	cJSON_Delete(response_json);
@@ -436,112 +420,104 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
 {
 	int i, ret;
-	char *out, s_time[128], e_time[128], *tag, col_name[32];
-	time_t start_time, end_time;
+	char *out, *tag;
 	vector<history_s> history_vec;
 	vector<history_s>::iterator it;
 	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_flow, *json_bytes;
 	cJSON *prev;
-	time_t times, timee;
 	
-	grafana_get_time_from_request(rst, s_time, e_time, sizeof(s_time));
 	tag = rst->targets->data.additional;
 	if(tag == NULL)
 	{
 		return NULL;
 	}
-	start_time = timestr_to_stamp(s_time);
-	end_time = timestr_to_stamp(e_time);
-	job->start_time = start_time;
-	job->end_time = end_time;
-	memset(col_name, 0, sizeof(col_name));
 	if(!strcasecmp(tag, "HXQ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_HXQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_HXQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "HXQ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_HXQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_HXQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "HXQ_ZB_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_HXQ_ZB, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_HXQ_ZB, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "HXQ_ZB_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_HXQ_ZB, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_HXQ_ZB, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "HXQ_SF_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_HXQ_SF, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_HXQ_SF, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "HXQ_SF_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_HXQ_SF, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_HXQ_SF, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "GLQ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_GLQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_GLQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "GLQ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_GLQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_GLQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "RZQ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_RZQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_RZQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "RZQ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_RZQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_RZQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "JRQ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_JRQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_JRQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "JRQ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_JRQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_JRQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "CSQ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_CSQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_CSQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "CSQ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_CSQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_CSQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "DMZ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_DMZ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_DMZ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "DMZ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_DMZ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_DMZ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "ALQ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_ALQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_ALQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "ALQ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_ALQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_ALQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "WBQ_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_WBQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_WBQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "WBQ_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_WBQ, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_WBQ, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "UNKNOWN_in"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_DST_UNKNOWN, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_UNKNOWN, (void *)&history_vec);
 	}
 	else if(!strcasecmp(tag, "UNKNOWN_out"))
 	{
-		ret = get_history(mysql, start_time, end_time, HISTORY_SRC_UNKNOWN, (void *)&history_vec);
+		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_UNKNOWN, (void *)&history_vec);
 	}
 	else
 	{
@@ -552,7 +528,6 @@ static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *reque
 		return NULL;
 	}
 	myprintf("Vector Size:%lu\n", history_vec.size());
-	time(&times);
 	/* 根据target拼接json */
 	response_json = cJSON_CreateArray();
 	root = cJSON_CreateObject();
@@ -591,8 +566,6 @@ static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *reque
 	cJSON_AddStringToObject(column, "text", "bytes");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
-	time(&timee);
-	myprintf("[Cost %ld seconds]:Create Json.\n", timee - times);
 	/* 释放空间 */
 	out = cJSON_Print(response_json);
 	cJSON_Delete(response_json);
@@ -604,111 +577,104 @@ static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *reque
 static char *grafana_build_reponse_query_trend(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
 {
 	int i, ret;
-	char *out, s_time[128], e_time[128], *tag;
-	time_t start_time, end_time;
+	char *out, *tag;
 	map<uint64_t, uint64_t> trend_map;
 	map<uint64_t, uint64_t>::iterator it;
 	cJSON *root, *response_json, *datapoints, *datapoint, *json_time, *json_bytes;
 	cJSON *prev;
-	time_t times, timee;
 	
-	grafana_get_time_from_request(rst, s_time, e_time, sizeof(s_time));
 	tag = rst->targets->data.additional;
 	if(tag == NULL)
 	{
 		return NULL;
 	}
-	start_time = timestr_to_stamp(s_time);
-	end_time = timestr_to_stamp(e_time);
-	job->start_time = start_time;
-	job->end_time = end_time;
 	if(!strcasecmp(tag, "HXQ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_HXQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_HXQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "HXQ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_HXQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_HXQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "HXQ_ZB_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_HXQ_ZB, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_HXQ_ZB, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "HXQ_ZB_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_HXQ_ZB, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_HXQ_ZB, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "HXQ_SF_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_HXQ_SF, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_HXQ_SF, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "HXQ_SF_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_HXQ_SF, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_HXQ_SF, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "GLQ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_GLQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_GLQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "GLQ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_GLQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_GLQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "RZQ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_RZQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_RZQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "RZQ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_RZQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_RZQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "JRQ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_JRQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_JRQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "JRQ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_JRQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_JRQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "CSQ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_CSQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_CSQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "CSQ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_CSQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_CSQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "DMZ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_DMZ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_DMZ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "DMZ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_DMZ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_DMZ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "ALQ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_ALQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_ALQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "ALQ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_ALQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_ALQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "WBQ_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_WBQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_WBQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "WBQ_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_WBQ, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_WBQ, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "UNKNOWN_in"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_DST_UNKNOWN, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_UNKNOWN, (void *)&trend_map);
 	}
 	else if(!strcasecmp(tag, "UNKNOWN_out"))
 	{
-		ret = get_trend(mysql, start_time, end_time, TREND_SRC_UNKNOWN, (void *)&trend_map);
+		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_UNKNOWN, (void *)&trend_map);
 	}
 	else
 	{
@@ -719,7 +685,6 @@ static char *grafana_build_reponse_query_trend(MYSQL *mysql, const char *request
 		return NULL;
 	}
 	myprintf("Map Size:%lu\n", trend_map.size());
-	time(&times);
 	/* 根据target拼接json */
 	response_json = cJSON_CreateArray();
 	root = cJSON_CreateObject();
@@ -748,8 +713,6 @@ static char *grafana_build_reponse_query_trend(MYSQL *mysql, const char *request
 			prev = datapoint;
 		}
 	}
-	time(&timee);
-	myprintf("[Cost %ld seconds]:Create Json.\n", timee - times);
 	/* 释放空间 */
 	out = cJSON_Print(response_json);
 	cJSON_Delete(response_json);
@@ -760,20 +723,28 @@ static char *grafana_build_reponse_query_trend(MYSQL *mysql, const char *request
 /* 响应grafana的 query 请求, 返回的指针用完要free */
 char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
-	char *target;
+	char *target, s_time[128], e_time[128];
 	grafana_query_request_s query_rst;
 
 	if(grafana_query_structured(request_body, &query_rst) != 0)
 	{
 		return NULL;
 	}
-	
+
 	target = query_rst.targets->target;
 	if(target == NULL)
 	{
 		return NULL;
 	}
-	else if(strcasecmp(target, "top") == 0)
+	grafana_get_time_from_request(&query_rst, s_time, e_time, sizeof(s_time));
+	job->start_time = timestr_to_stamp(s_time);
+	job->end_time = timestr_to_stamp(e_time);
+	timechanged(&(job->start_time));
+	timechanged(&(job->end_time));
+	timestamp_to_str(job->start_time, s_time, sizeof(s_time));
+	timestamp_to_str(job->end_time, e_time, sizeof(e_time));
+	myprintf("Start:%s  End:%s\n", s_time, e_time);
+	if(strcasecmp(target, "top") == 0)
 	{
 		return grafana_build_reponse_query_top(mysql, request_body, &query_rst, job);
 	}

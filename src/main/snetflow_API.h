@@ -12,12 +12,15 @@ extern "C" {
 
 #define ARGUMENTS "\
 Usage:\n\
-$ snetflow-API    [--API-port <-p> <listened port>\n\
+$ snetflow-API    necessary:\n\
+				  [--API-port <-p> <listened port>\n\
                   [--database-host <-h> <database host>]\n\
                   [--database-name <-a> <database name>]\n\
+                  optional:\n\
                   [--database-port <-t> <database port>]\n\
-                  [--debug <-d> <debug message>]\n\
-                  [--version <-v> <version message>]\n\
+                  [--time-change   <-c> <time delay/forward>]\n\
+                  [--debug         <-d> <debug message>]\n\
+                  [--version       <-v> <version message>]\n\
 $ snetflow-API\
 ©2020 langl5@chinaunicom.cn\n"
 
