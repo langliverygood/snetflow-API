@@ -22,6 +22,7 @@
 #include <event2/listener.h>
 
 #include "common.h"
+#include "config.h"
 #include "grafana_json.h"
 #include "snetflow_API.h"
 
@@ -40,6 +41,8 @@ static uint16_t database_port;
 /* 多线程对象 */
 static pthread_t http_ser_ths[API_THREADS_NUM];
 static httpd_info_s http_ser_info[API_THREADS_NUM];
+/* 配置文件 */
+static char cfg_file[256];
 
 /* 数据库初始化 */
 static int init_mysql(MYSQL *mysql)
@@ -69,6 +72,7 @@ static void sneflow_API_init(int argc, char *argv[])
         {"API-port", required_argument, 0, 'p'},
         {"database-host", required_argument, 0, 'h'},
         {"database-name", required_argument, 0, 'a'},
+	    {"file", required_argument, 0, 'f'},
 		{"database-port", required_argument, 0, 't'},
 		{"time-change", required_argument, 0, 'c'},
 		{"debug", no_argument, 0, 'd'},
@@ -76,12 +80,15 @@ static void sneflow_API_init(int argc, char *argv[])
         {0,0,0,0}
     };
 		
-    /* 读取命令行中的参数 */
+    /* 读取命令行中的参数,先设置默认值 */
+	sprintf(database_host, "%s", "127.0.0.1");
 	sprintf(database_username, "%s", "root");
     sprintf(database_password, "%s", "toor");
+	sprintf(cfg_file, "%s", "/etc/snetflow-API/snetflow-API.cfg");
+	database_port = 3306;
 	requirednum = errornum = 0;
     optind = optopt = opterr = 0;
-    while ((ret = getopt_long(argc, argv, "p:h:a:t:c:vd", long_options, &index)) != -1)   
+    while ((ret = getopt_long(argc, argv, "p:h:a:t:c:f:vd", long_options, &index)) != -1)   
     {
         switch (ret)
         {
@@ -91,11 +98,13 @@ static void sneflow_API_init(int argc, char *argv[])
                 break;
             case 'h':
 				strncpy(database_host, optarg, sizeof(database_host));
-				requirednum++;
                 break;
             case 'a':
                 strncpy(database_name, optarg, sizeof(database_name));
 				requirednum++;
+                break;
+			case 'f':
+                strncpy(cfg_file, optarg, sizeof(cfg_file) - 1);
                 break;
 			case 't':
 				database_port = atoi(optarg);
@@ -115,11 +124,13 @@ static void sneflow_API_init(int argc, char *argv[])
                 break;
         }
     }
-    if(requirednum != 3 || errornum != 0)
+    if(requirednum != 2 || errornum != 0)
     {
         printf(ARGUMENTS);
         exit(-1);
     }
+	/* 读取配置文件 */
+	read_cfg_file(cfg_file);
 
 	return;
 }

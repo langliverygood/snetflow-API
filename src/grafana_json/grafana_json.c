@@ -5,6 +5,7 @@
 #include <mysql/mysql.h>
 
 #include "common.h"
+#include "config.h"
 #include "snetflow_top.h"
 #include "snetflow_history.h"
 #include "snetflow_trend.h"
@@ -218,15 +219,26 @@ char *grafana_build_reponse_search()
 static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
 {
 	int i, ret;
-	char *out, *tag, col_name[32];
+	char *out, *tag;
 	map<string, uint64_t> top_map;
 	map<string, uint64_t>::iterator it;
 	string s;
+	mysql_conf_s *cfg;
 	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
 	cJSON *prev;
 	
 	tag = rst->targets->data.additional;
 	if(tag == NULL)
+	{
+		return NULL;
+	}
+	cfg = get_config(tag, TOP);
+	if(cfg == NULL)
+	{
+		return NULL;
+	}
+	ret = get_top(mysql, job->start_time, job->end_time, cfg, (void *)&top_map);
+	if(ret != 0)
 	{
 		return NULL;
 	}
@@ -238,146 +250,6 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 	columns = cJSON_AddArrayToObject(root, "columns");
 	cJSON_AddStringToObject(root, "type", "table");
 	/* rows */
-	memset(col_name, 0, sizeof(col_name));
-	if(!strcasecmp(tag, "src_set"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_SET, (void *)&top_map);
-		strcpy(col_name, "src_set");
-	}
-	else if(!strcasecmp(tag, "dst_set"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_SET, (void *)&top_map);
-		strcpy(col_name, "dst_set");
-	}
-	else if(!strcasecmp(tag, "src_biz"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_BIZ, (void *)&top_map);
-		strcpy(col_name, "src_biz");
-	}
-	else if(!strcasecmp(tag, "dst_biz"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_BIZ, (void *)&top_map);
-		strcpy(col_name, "dst_biz");
-	}
-	else if(!strcasecmp(tag, "HXQ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_HXQ, (void *)&top_map);
-		strcpy(col_name, "HXQ_in");
-	}
-	else if(!strcasecmp(tag, "HXQ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_HXQ, (void *)&top_map);
-		strcpy(col_name, "HXQ_out");
-	}
-	else if(!strcasecmp(tag, "HXQ_ZB_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_HXQ_ZB, (void *)&top_map);
-		strcpy(col_name, "HXQ_ZB_in");
-	}
-	else if(!strcasecmp(tag, "HXQ_ZB_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_HXQ_ZB, (void *)&top_map);
-		strcpy(col_name, "HXQ_ZB_out");
-	}
-	else if(!strcasecmp(tag, "HXQ_SF_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_HXQ_SF, (void *)&top_map);
-		strcpy(col_name, "HXQ_SF_in");
-	}
-	else if(!strcasecmp(tag, "HXQ_SF_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_HXQ_SF, (void *)&top_map);
-		strcpy(col_name, "HXQ_SF_out");
-	}
-	else if(!strcasecmp(tag, "GLQ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_GLQ, (void *)&top_map);
-		strcpy(col_name, "GLQ_in");
-	}
-	else if(!strcasecmp(tag, "GLQ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_GLQ, (void *)&top_map);
-		strcpy(col_name, "GLQ_out");
-	}
-	else if(!strcasecmp(tag, "RZQ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_RZQ, (void *)&top_map);
-		strcpy(col_name, "RZQ_in");
-	}
-	else if(!strcasecmp(tag, "RZQ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_RZQ, (void *)&top_map);
-		strcpy(col_name, "RZQ_out");
-	}
-	else if(!strcasecmp(tag, "JRQ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_JRQ, (void *)&top_map);
-		strcpy(col_name, "JRQ_in");
-	}
-	else if(!strcasecmp(tag, "JRQ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_JRQ, (void *)&top_map);
-		strcpy(col_name, "JRQ_out");
-	}
-	else if(!strcasecmp(tag, "CSQ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_CSQ, (void *)&top_map);
-		strcpy(col_name, "CSQ_in");
-	}
-	else if(!strcasecmp(tag, "CSQ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_CSQ, (void *)&top_map);
-		strcpy(col_name, "CSQ_out");
-	}
-	else if(!strcasecmp(tag, "DMZ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_DMZ, (void *)&top_map);
-		strcpy(col_name, "DMZ_in");
-	}
-	else if(!strcasecmp(tag, "DMZ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_DMZ, (void *)&top_map);
-		strcpy(col_name, "DMZ_out");
-	}
-	else if(!strcasecmp(tag, "ALQ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_ALQ, (void *)&top_map);
-		strcpy(col_name, "ALQ_in");
-	}
-	else if(!strcasecmp(tag, "ALQ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_ALQ, (void *)&top_map);
-		strcpy(col_name, "ALQ_out");
-	}
-	else if(!strcasecmp(tag, "WBQ_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_WBQ, (void *)&top_map);
-		strcpy(col_name, "WBQ_in");
-	}
-	else if(!strcasecmp(tag, "WBQ_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_WBQ, (void *)&top_map);
-		strcpy(col_name, "WBQ_out");
-	}
-	else if(!strcasecmp(tag, "UNKNOWN_in"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_DST_UNKNOWN, (void *)&top_map);
-		strcpy(col_name, "UNKNOWN_in");
-	}
-	else if(!strcasecmp(tag, "UNKNOWN_out"))
-	{
-		ret = get_top(mysql, job->start_time, job->end_time, TOP_SRC_UNKNOWN, (void *)&top_map);
-		strcpy(col_name, "UNKNOWN_out");
-	}
-	else
-	{
-		return NULL;
-	}
-	if(ret != 0)
-	{
-		return NULL;
-	}
-	myprintf("Map Size:%lu\n", top_map.size());
 	for(i = 0, it = top_map.begin(); it != top_map.end(); it++)  
 	{
 		s = it->first;
@@ -402,7 +274,7 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 	}
 	/* columns */
 	column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", col_name);
+	cJSON_AddStringToObject(column, "text", cfg->name);
     cJSON_AddStringToObject(column, "type", "string");
 	cJSON_AddItemToArray(columns, column);
     column = cJSON_CreateObject();
@@ -421,6 +293,7 @@ static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *reque
 {
 	int i, ret;
 	char *out, *tag;
+	mysql_conf_s *cfg;
 	vector<history_s> history_vec;
 	vector<history_s>::iterator it;
 	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_flow, *json_bytes;
@@ -431,103 +304,16 @@ static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *reque
 	{
 		return NULL;
 	}
-	if(!strcasecmp(tag, "HXQ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_HXQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "HXQ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_HXQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "HXQ_ZB_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_HXQ_ZB, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "HXQ_ZB_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_HXQ_ZB, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "HXQ_SF_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_HXQ_SF, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "HXQ_SF_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_HXQ_SF, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "GLQ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_GLQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "GLQ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_GLQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "RZQ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_RZQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "RZQ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_RZQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "JRQ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_JRQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "JRQ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_JRQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "CSQ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_CSQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "CSQ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_CSQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "DMZ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_DMZ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "DMZ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_DMZ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "ALQ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_ALQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "ALQ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_ALQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "WBQ_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_WBQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "WBQ_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_WBQ, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "UNKNOWN_in"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_DST_UNKNOWN, (void *)&history_vec);
-	}
-	else if(!strcasecmp(tag, "UNKNOWN_out"))
-	{
-		ret = get_history(mysql, job->start_time, job->end_time, HISTORY_SRC_UNKNOWN, (void *)&history_vec);
-	}
-	else
+	cfg = get_config(tag, HISTORY);
+	if(cfg == NULL)
 	{
 		return NULL;
 	}
+	ret = get_history(mysql, job->start_time, job->end_time, cfg, (void *)&history_vec);
 	if(ret != 0)
 	{
 		return NULL;
 	}
-	myprintf("Vector Size:%lu\n", history_vec.size());
 	/* 根据target拼接json */
 	response_json = cJSON_CreateArray();
 	root = cJSON_CreateObject();
@@ -559,7 +345,7 @@ static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *reque
 	}
 	/* columns */
 	column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", "flow");
+	cJSON_AddStringToObject(column, "text", cfg->name);
     cJSON_AddStringToObject(column, "type", "string");
 	cJSON_AddItemToArray(columns, column);
     column = cJSON_CreateObject();
@@ -578,113 +364,27 @@ static char *grafana_build_reponse_query_trend(MYSQL *mysql, const char *request
 {
 	int i, ret;
 	char *out, *tag;
+	mysql_conf_s *cfg;
 	map<uint64_t, uint64_t> trend_map;
 	map<uint64_t, uint64_t>::iterator it;
 	cJSON *root, *response_json, *datapoints, *datapoint, *json_time, *json_bytes;
 	cJSON *prev;
-	
+
 	tag = rst->targets->data.additional;
 	if(tag == NULL)
 	{
 		return NULL;
 	}
-	if(!strcasecmp(tag, "HXQ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_HXQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "HXQ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_HXQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "HXQ_ZB_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_HXQ_ZB, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "HXQ_ZB_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_HXQ_ZB, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "HXQ_SF_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_HXQ_SF, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "HXQ_SF_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_HXQ_SF, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "GLQ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_GLQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "GLQ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_GLQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "RZQ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_RZQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "RZQ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_RZQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "JRQ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_JRQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "JRQ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_JRQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "CSQ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_CSQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "CSQ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_CSQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "DMZ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_DMZ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "DMZ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_DMZ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "ALQ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_ALQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "ALQ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_ALQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "WBQ_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_WBQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "WBQ_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_WBQ, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "UNKNOWN_in"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_DST_UNKNOWN, (void *)&trend_map);
-	}
-	else if(!strcasecmp(tag, "UNKNOWN_out"))
-	{
-		ret = get_trend(mysql, job->start_time, job->end_time, TREND_SRC_UNKNOWN, (void *)&trend_map);
-	}
-	else
+	cfg = get_config(tag, TREND);
+	if(cfg == NULL)
 	{
 		return NULL;
 	}
+	ret = get_trend(mysql, job->start_time, job->end_time, cfg, (void *)&trend_map);
 	if(ret != 0)
 	{
 		return NULL;
 	}
-	myprintf("Map Size:%lu\n", trend_map.size());
 	/* 根据target拼接json */
 	response_json = cJSON_CreateArray();
 	root = cJSON_CreateObject();

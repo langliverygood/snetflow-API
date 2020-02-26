@@ -5,12 +5,13 @@
 #include <mysql/mysql.h>
 
 #include "common.h"
+#include "config.h"
 #include "snetflow_history.h"
 
 using namespace std;
 
 /* 从数据查询结果，并写入相应的map 中 */
-static int history_query(MYSQL *mysql, const char *query, int kind, vector<history_s> *history_vec)
+static int history_query(MYSQL *mysql, const char *query, vector<history_s> *history_vec)
 {
 	int flag;
 	char s_ip[64], d_ip[64], prot_str[16], time_str[32];
@@ -53,11 +54,10 @@ static int history_query(MYSQL *mysql, const char *query, int kind, vector<histo
 	return 0;
 }
 
-int get_history(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void* history_vec)
+int get_history(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, void* history_vec)
 {
 	int i, s_week, e_week, interval;
-	char query[1024], week_str[4], region[16];
-	char column[128], condition[128];
+	char query[1024], week_str[4];
 	time_t time_now;
 	
 	/* 保证截止时间不超过当前, 时间跨度不超过7天 */
@@ -79,147 +79,20 @@ int get_history(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void
 	{
 		interval += 7;
 	}
-	/* 确定查询条件 */
-	sprintf(column, "%s,%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT, MYSQL_TIMESTAMP);
-	if(kind == HISTORY_SRC_HXQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_HXQ_CN);
-		sprintf(region, "%s", NET_HXQ);
-	}
-	else if(kind == HISTORY_DST_HXQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_HXQ_CN);
-		sprintf(region, "%s", NET_HXQ);
-	}
-	else if(kind == HISTORY_SRC_HXQ_ZB)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_HXQ_ZB_CN);
-		sprintf(region, "%s", NET_HXQ_ZB);
-	}
-	else if(kind == HISTORY_DST_HXQ_ZB)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_HXQ_ZB_CN);
-		sprintf(region, "%s", NET_HXQ_ZB);
-	}
-	else if(kind == HISTORY_SRC_HXQ_SF)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_HXQ_SF_CN);
-		sprintf(region, "%s", NET_HXQ_SF);
-	}
-	else if(kind == HISTORY_DST_HXQ_SF)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_HXQ_SF_CN);
-		sprintf(region, "%s", NET_HXQ_SF);
-	}
-	else if(kind == HISTORY_SRC_GLQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_GLQ_CN);
-		sprintf(region, "%s", NET_GLQ);
-	}
-	else if(kind == HISTORY_DST_GLQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_GLQ_CN);
-		sprintf(region, "%s", NET_GLQ);
-	}
-	else if(kind == HISTORY_SRC_RZQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_RZQ_CN);
-		sprintf(region, "%s", NET_RZQ);
-	}
-	else if(kind == HISTORY_DST_RZQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_RZQ_CN);
-		sprintf(region, "%s", NET_RZQ);
-	}
-	else if(kind == HISTORY_SRC_JRQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_JRQ_CN);
-		sprintf(region, "%s", NET_JRQ);
-	}
-	else if(kind == HISTORY_DST_JRQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_JRQ_CN);
-		sprintf(region, "%s", NET_JRQ);
-	}
-	else if(kind == HISTORY_SRC_CSQ)
-	{
-		sprintf(column, "%s,%s,%s,%s,%s,%s,%s", MYSQL_BYTES, MYSQL_SRCIP, MYSQL_SRCBIZ, MYSQL_DSTIP, MYSQL_DSTPORT, MYSQL_DSTBIZ, MYSQL_PROT);
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_CSQ_CN);
-		sprintf(region, "%s", NET_CSQ);
-	}
-	else if(kind == HISTORY_DST_CSQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_CSQ_CN);
-		sprintf(region, "%s", NET_CSQ);
-	}
-	else if(kind == HISTORY_SRC_DMZ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_DMZ_CN);
-		sprintf(region, "%s", NET_DMZ);
-	}
-	else if(kind == HISTORY_DST_DMZ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_DMZ_CN);
-		sprintf(region, "%s", NET_DMZ);
-	}
-	else if(kind == HISTORY_SRC_ALQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_ALQ_CN);
-		sprintf(region, "%s", NET_ALQ);
-	}
-	else if(kind == HISTORY_DST_ALQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_ALQ_CN);
-		sprintf(region, "%s", NET_ALQ);
-	}
-	else if(kind == HISTORY_SRC_WBQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_WBQ_CN);
-		sprintf(region, "%s", NET_WBQ);
-	}
-	else if(kind == HISTORY_DST_WBQ)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_WBQ_CN);
-		sprintf(region, "%s", NET_WBQ);
-	}
-	else if(kind == HISTORY_SRC_UNKNOWN)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_SRCREGION, NET_UNKNOWN);
-		sprintf(region, "%s", NET_UNKNOWN);
-	}
-	else if(kind == HISTORY_DST_UNKNOWN)
-	{
-		sprintf(condition, "%s = '%s'",  MYSQL_DSTREGION, NET_UNKNOWN);
-		sprintf(region, "%s", NET_UNKNOWN);
-	}
-	else
-	{
-		return -1;
-	}
 	/* 当interval=0的时候，有两种情况：1、时间跨度只包含一天。2、时间跨度将近但未到达七天，如：上个周六晚8点到这个周六早10点。*/
 	if(interval == 0)
 	{
 		wday_int_to_str(s_week, week_str, sizeof(week_str));
-		sprintf(query, "select %s from %s_%s%s where %s >= %lu and %s <= %lu", column, TABLE_NAME, week_str, region, MYSQL_TIMESTAMP, start_time, MYSQL_TIMESTAMP, end_time);
-		if(strlen(condition) > 0)
-		{
-			strcat(query, " and ");
-			strcat(query, condition);
-		}
-		history_query(mysql, query, kind, (vector<history_s> *)history_vec);
+		sprintf(query, "select %s from record_%s%s where %s >= %lu and %s <= %lu %s", cfg->column, week_str, cfg->table, MYSQL_TIMESTAMP, start_time, MYSQL_TIMESTAMP, end_time, cfg->condition);
+		history_query(mysql, query, (vector<history_s> *)history_vec);
 		/* 如果是第二种情况(时间跨度超过一天), 要查询其他6张表的全部 */
 		if(end_time - start_time > 60 * 60 * 24)
 		{
 			for(i = (s_week + 1) % 7; i != s_week; i = (i + 1) % 7)
 			{
 				wday_int_to_str(i, week_str, sizeof(week_str));
-				sprintf(query, "select %s from %s_%s%s", column, TABLE_NAME, week_str, region);
-				if(strlen(condition) > 0)
-				{
-					strcat(query, " where ");
-					strcat(query, condition);
-				}
-				history_query(mysql, query, kind, (vector<history_s> *)history_vec);
+				sprintf(query, "select %s from record_%s%s where 1=1 %s", cfg->column, week_str, cfg->table, cfg->condition);
+				history_query(mysql, query, (vector<history_s> *)history_vec);
 			}
 		}
 	}
@@ -230,32 +103,17 @@ int get_history(MYSQL *mysql, time_t start_time, time_t end_time, int kind, void
 			wday_int_to_str((s_week + i) % 7, week_str, sizeof(week_str));
 			if(i == 0) /* 查询第一张表的部分 */
 			{
-				sprintf(query, "select %s from %s_%s%s where %s >= %lu", column, TABLE_NAME, week_str, region, MYSQL_TIMESTAMP, start_time);
-				if(strlen(condition) > 0)
-				{
-					strcat(query, " and ");
-					strcat(query, condition);
-				}
+				sprintf(query, "select %s from record_%s%s where %s >= %lu %s", cfg->column, week_str, cfg->table, MYSQL_TIMESTAMP, start_time, cfg->condition);
 			}
 			else if(i == interval) /* 查询最后一张表的部分 */
 			{
-				sprintf(query, "select %s from %s_%s%s where %s <= %lu", column, TABLE_NAME, week_str, region, MYSQL_TIMESTAMP, end_time);
-				if(strlen(condition) > 0)
-				{
-					strcat(query, " and ");
-					strcat(query, condition);
-				}
+				sprintf(query, "select %s from record_%s%s where %s <= %lu %s", cfg->column, week_str, cfg->table, MYSQL_TIMESTAMP, end_time, cfg->condition);
 			}
 			else /* 查询其他表的全部 */
 			{
-				sprintf(query, "select %s from %s_%s%s", column, TABLE_NAME, week_str, region);
-				if(strlen(condition) > 0)
-				{
-					strcat(query, " where ");
-					strcat(query, condition);
-				}
+				sprintf(query, "select %s from record_%s%s where 1=1 %s", cfg->column, week_str, cfg->table, cfg->condition);
 			}
-			history_query(mysql, query, kind, (vector<history_s> *)history_vec);
+			history_query(mysql, query, (vector<history_s> *)history_vec);
 		}
 	}
 	

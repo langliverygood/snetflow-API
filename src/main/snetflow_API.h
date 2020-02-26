@@ -13,12 +13,13 @@ extern "C" {
 #define ARGUMENTS "\
 Usage:\n\
 $ snetflow-API    necessary:\n\
-				  [--API-port <-p> <listened port>\n\
-                  [--database-host <-h> <database host>]\n\
+                  [--API-port <-p> <listened port>\n\
                   [--database-name <-a> <database name>]\n\
                   optional:\n\
-                  [--database-port <-t> <database port>]\n\
-                  [--time-change   <-c> <time delay/forward>]\n\
+                  [--database-host <-h> <database host(default:127.0.0.1)>]\n\
+                  [--database-port <-t> <database port(default:3306)>]\n\
+                  [--file <-f> <configuration file(default:/etc/snetflow/snetflow.cfg)>]\n\
+                  [--time-change   <-c> <time delay/forward(default:0)>]\n\
                   [--debug         <-d> <debug message>]\n\
                   [--version       <-v> <version message>]\n\
 $ snetflow-API\
