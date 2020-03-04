@@ -94,9 +94,10 @@ static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<str
 int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, void* top_map)
 {
 	int i, s_week, e_week, interval;
-	char query[1024], week_str[4];
+	char query[1024], week_str[4], *timestamp;
 	time_t time_now;
 
+	timestamp = cfg_get_timestamp();
 	/* 保证截止时间不超过当前, 时间跨度不超过7天 */
 	time(&time_now);
 	if(end_time > time_now)
@@ -120,7 +121,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg,
 	if(interval == 0)
 	{
 		wday_int_to_str(s_week, week_str, sizeof(week_str));
-		sprintf(query, "select %s from record_%s%s where %s >= %lu and %s <= %lu %s", cfg->column, week_str, cfg->table, MYSQL_TIMESTAMP, start_time, MYSQL_TIMESTAMP, end_time, cfg->condition);
+		sprintf(query, "select %s from record_%s%s where %s >= %lu and %s <= %lu %s", cfg->column, week_str, cfg->table, timestamp, start_time, timestamp, end_time, cfg->condition);
 		top_query(mysql, query, cfg, (map<string, uint64_t> *)top_map);
 		/* 如果是第二种情况(时间跨度超过一天), 要查询其他6张表的全部 */
 		if(end_time - start_time > 60 * 60 * 24)
@@ -140,11 +141,11 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg,
 			wday_int_to_str((s_week + i) % 7, week_str, sizeof(week_str));
 			if(i == 0) /* 查询第一张表的部分 */
 			{
-				sprintf(query, "select %s from record_%s%s where %s >= %lu %s", cfg->column, week_str, cfg->table, MYSQL_TIMESTAMP, start_time, cfg->condition);
+				sprintf(query, "select %s from record_%s%s where %s >= %lu %s", cfg->column, week_str, cfg->table, timestamp, start_time, cfg->condition);
 			}
 			else if(i == interval) /* 查询最后一张表的部分 */
 			{
-				sprintf(query, "select %s from record_%s%s where %s <= %lu %s", cfg->column, week_str, cfg->table, MYSQL_TIMESTAMP, end_time, cfg->condition);
+				sprintf(query, "select %s from record_%s%s where %s <= %lu %s", cfg->column, week_str, cfg->table, timestamp, end_time, cfg->condition);
 			}
 			else /* 查询其他表的全部 */
 			{

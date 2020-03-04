@@ -5,11 +5,6 @@
 extern "C" {
 #endif
 
-#define API_THREADS_NUM  10
-#define API_LISTENED_LEN 1024
-#define API_TIME_OUT     600
-#define API_BUFFER_SIZE  40960
-
 #define ARGUMENTS "\
 Usage:\n\
 $ snetflow-API    necessary:\n\

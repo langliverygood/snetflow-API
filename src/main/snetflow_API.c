@@ -38,9 +38,6 @@ static char database_username[32];
 static char database_password[32];
 static char database_name[32];
 static uint16_t database_port;
-/* 多线程对象 */
-static pthread_t http_ser_ths[API_THREADS_NUM];
-static httpd_info_s http_ser_info[API_THREADS_NUM];
 /* 配置文件 */
 static char cfg_file[256];
 
@@ -162,7 +159,7 @@ static int bind_socket()
         myprintf("bind error\n");
 		exit(-1);
     }
-    listen(server_socket, API_LISTENED_LEN);
+    listen(server_socket, cfg_get_listened_num());
 	
     return server_socket;
 }
@@ -234,7 +231,7 @@ static void print_request(struct evhttp_request *req)
 /* 解析post请求数据 */
 static char *get_post_body(struct evhttp_request *req)
 {
-	int post_size, copy_len;
+	int post_size, copy_len, body_len;
 	char *buf;
 	
 	post_size = evbuffer_get_length(req->input_buffer); /*获取数据长度 */
@@ -245,7 +242,8 @@ static char *get_post_body(struct evhttp_request *req)
 	}
 	else
 	{
-		copy_len = post_size > API_BUFFER_SIZE ? API_BUFFER_SIZE : post_size;
+		body_len = cfg_get_request_body_size();
+		copy_len = post_size > body_len ? body_len : post_size;
 		buf = (char *)malloc(copy_len + 1);
 		memcpy(buf, evbuffer_pullup(req->input_buffer, -1), copy_len);
 		buf[copy_len] = 0;
@@ -363,15 +361,23 @@ void *http_dispatch(void *args)
 
 int main(int argc, char *argv[])
 {
-	int i, ret, server_socket;
-	httpd_info_s *pinfo;
+	int i, ret, server_socket, thread_num;
+	pthread_t *http_ser_ths, *pthrd;
+    httpd_info_s *http_ser_info, *pinfo;
 
 	/* 初始化 */
 	sneflow_API_init(argc, argv);
 	server_socket = bind_socket();
-	for(i = 0; i < API_THREADS_NUM; i++)
+	/* 创建线程 */
+	thread_num = cfg_get_thread_num();
+	http_ser_ths = (pthread_t *)malloc(sizeof(pthread_t) * thread_num);
+	memset(http_ser_ths, 0, sizeof(pthread_t) * thread_num);
+	http_ser_info = (httpd_info_s *)malloc(sizeof(httpd_info_s) * thread_num);
+	memset(http_ser_info, 0, sizeof(httpd_info_s) * thread_num);
+	for(i = 0; i < thread_num; i++)
     {
-        pinfo = &http_ser_info[i];
+		pthrd = http_ser_ths + i;
+        pinfo = http_ser_info + i;
         pinfo->base = event_base_new();
         if(pinfo->base == NULL)
         {
@@ -391,23 +397,24 @@ int main(int argc, char *argv[])
 			exit(-1);
         }
 		/* 设置请求超时时间(s) */
-		evhttp_set_timeout(pinfo->httpd, API_TIME_OUT);
+		evhttp_set_timeout(pinfo->httpd, cfg_get_response_timeout());
 		/* 设置事件处理函数，evhttp_set_cb针对每一个事件(请求)注册一个处理函数 */
 		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/", http_handler_root, NULL);
 		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/search", http_handler_search, NULL);
 		evhttp_set_cb(pinfo->httpd, "/snetflow-API/top/query", http_handler_query, NULL);
 		/* evhttp_set_gencb函数，是对所有请求设置一个统一的处理函数 */
 		evhttp_set_gencb(pinfo->httpd, http_handler_others, NULL);
-        ret = pthread_create(&http_ser_ths[i], NULL, http_dispatch, (void *)pinfo);
+        ret = pthread_create(pthrd, NULL, http_dispatch, (void *)pinfo);
 		if(ret != 0)
         {
             myprintf("Error pthread_create\n");
 			exit(-1);
         }
     }
-    for (i = 0; i < API_THREADS_NUM; i++)
+    for (i = 0; i < thread_num; i++)
     {
-        pthread_join(http_ser_ths[i], NULL);
+		pthrd = http_ser_ths + i;
+        pthread_join(*pthrd, NULL);
     }
 		
 	return 0;

@@ -9,6 +9,7 @@
 #include "snetflow_top.h"
 #include "snetflow_history.h"
 #include "snetflow_trend.h"
+#include "snetflow_warning.h"
 #include "grafana_json.h"
 
 using namespace std;
@@ -209,6 +210,7 @@ char *grafana_build_reponse_search()
 	cJSON_AddItemToArray(json, cJSON_CreateString("top"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("history"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("trend"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("warning"));
 	json_str = cJSON_Print(json);
 	cJSON_Delete(json);
 
@@ -257,77 +259,6 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
 		json_bytes = cJSON_CreateNumber(it->second);
 		row = cJSON_CreateArray();
 	    cJSON_AddItemToArray(row, json_tag);
-	    cJSON_AddItemToArray(row, json_bytes);
-		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
-		if(i == 0)
-		{
-			i = 1;
-			cJSON_AddItemToArray(rows, row);
-			prev = row;
-		}
-		else
-		{
-			row->prev = prev;
-			prev->next = row;
-			prev = row;
-		}
-	}
-	/* columns */
-	column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", cfg->name);
-    cJSON_AddStringToObject(column, "type", "string");
-	cJSON_AddItemToArray(columns, column);
-    column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", "bytes");
-    cJSON_AddStringToObject(column, "type", "number");
-	cJSON_AddItemToArray(columns, column);
-	/* 释放空间 */
-	out = cJSON_Print(response_json);
-	cJSON_Delete(response_json);
-	
-	return out;
-}
-
-/* 响应grafana的 query(history) 请求, 返回的指针用完要free */
-static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
-{
-	int i, ret;
-	char *out, *tag;
-	mysql_conf_s *cfg;
-	vector<history_s> history_vec;
-	vector<history_s>::iterator it;
-	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_flow, *json_bytes;
-	cJSON *prev;
-	
-	tag = rst->targets->data.additional;
-	if(tag == NULL)
-	{
-		return NULL;
-	}
-	cfg = get_config(tag, HISTORY);
-	if(cfg == NULL)
-	{
-		return NULL;
-	}
-	ret = get_history(mysql, job->start_time, job->end_time, cfg, (void *)&history_vec);
-	if(ret != 0)
-	{
-		return NULL;
-	}
-	/* 根据target拼接json */
-	response_json = cJSON_CreateArray();
-	root = cJSON_CreateObject();
-	cJSON_AddItemToArray(response_json, root);
-	rows = cJSON_AddArrayToObject(root, "rows");
-	columns = cJSON_AddArrayToObject(root, "columns");
-	cJSON_AddStringToObject(root, "type", "table");
-	/* rows */
-	for(i = 0, it = history_vec.begin(); it != history_vec.end(); it++)  
-	{
-		json_flow = cJSON_CreateString((*it).flow);
-		json_bytes = cJSON_CreateNumber((*it).bytes);
-		row = cJSON_CreateArray();
-	    cJSON_AddItemToArray(row, json_flow);
 	    cJSON_AddItemToArray(row, json_bytes);
 		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
 		if(i == 0)
@@ -420,6 +351,178 @@ static char *grafana_build_reponse_query_trend(MYSQL *mysql, const char *request
 	return out;
 }
 
+/* 响应grafana的 query(history) 请求, 返回的指针用完要free */
+static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
+{
+	int i, ret;
+	char *out, *tag;
+	mysql_conf_s *cfg;
+	vector<history_s> history_vec;
+	vector<history_s>::iterator it;
+	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_flow, *json_bytes;
+	cJSON *prev;
+	
+	tag = rst->targets->data.additional;
+	if(tag == NULL)
+	{
+		return NULL;
+	}
+	cfg = get_config(tag, HISTORY);
+	if(cfg == NULL)
+	{
+		return NULL;
+	}
+	ret = get_history(mysql, job->start_time, job->end_time, cfg, (void *)&history_vec);
+	if(ret != 0)
+	{
+		return NULL;
+	}
+	/* 根据target拼接json */
+	response_json = cJSON_CreateArray();
+	root = cJSON_CreateObject();
+	cJSON_AddItemToArray(response_json, root);
+	rows = cJSON_AddArrayToObject(root, "rows");
+	columns = cJSON_AddArrayToObject(root, "columns");
+	cJSON_AddStringToObject(root, "type", "table");
+	/* rows */
+	for(i = 0, it = history_vec.begin(); it != history_vec.end(); it++)  
+	{
+		json_flow = cJSON_CreateString((*it).flow);
+		json_bytes = cJSON_CreateNumber((*it).bytes);
+		row = cJSON_CreateArray();
+	    cJSON_AddItemToArray(row, json_flow);
+	    cJSON_AddItemToArray(row, json_bytes);
+		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
+		if(i == 0)
+		{
+			i = 1;
+			cJSON_AddItemToArray(rows, row);
+			prev = row;
+		}
+		else
+		{
+			row->prev = prev;
+			prev->next = row;
+			prev = row;
+		}
+	}
+	/* columns */
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", cfg->name);
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+    column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "bytes");
+    cJSON_AddStringToObject(column, "type", "number");
+	cJSON_AddItemToArray(columns, column);
+	/* 释放空间 */
+	out = cJSON_Print(response_json);
+	cJSON_Delete(response_json);
+	
+	return out;
+}
+
+/* 响应grafana的 query(warning) 请求, 返回的指针用完要free */
+static char *grafana_build_reponse_query_warning(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
+{
+	int i, ret;
+	char *out, *tag;
+	mysql_conf_s *cfg;
+	map<uint32_t, warning_msg_s> warning_map;
+	map<uint32_t, warning_msg_s>::iterator it;
+	cJSON *root, *response_json, *columns, *column, *rows, *row;
+	cJSON *ip, *bytes, *biz, *set, *module, *region, *switches, *prev;
+	
+	tag = rst->targets->data.additional;
+	if(tag == NULL)
+	{
+		return NULL;
+	}
+	cfg = get_config(tag, WARNING);
+	if(cfg == NULL)
+	{
+		return NULL;
+	}
+	ret = get_warning(mysql, job->start_time, job->end_time, cfg, (void *)&warning_map);
+	if(ret != 0)
+	{
+		return NULL;
+	}
+	/* 根据target拼接json */
+	response_json = cJSON_CreateArray();
+	root = cJSON_CreateObject();
+	cJSON_AddItemToArray(response_json, root);
+	rows = cJSON_AddArrayToObject(root, "rows");
+	columns = cJSON_AddArrayToObject(root, "columns");
+	cJSON_AddStringToObject(root, "type", "table");
+	/* rows */
+	for(i = 0, it = warning_map.begin(); it != warning_map.end(); it++)  
+	{
+		ip = cJSON_CreateString(it->second.ip);
+		bytes = cJSON_CreateNumber(it->second.bytes);
+		biz = cJSON_CreateString(it->second.biz);
+		set = cJSON_CreateString(it->second.set);
+		module = cJSON_CreateString(it->second.module);
+		region = cJSON_CreateString(it->second.region);
+		switches = cJSON_CreateString(it->second.switches);
+		row = cJSON_CreateArray();
+	    cJSON_AddItemToArray(row, ip);
+	    cJSON_AddItemToArray(row, bytes);
+		cJSON_AddItemToArray(row, biz);
+		cJSON_AddItemToArray(row, set);
+		cJSON_AddItemToArray(row, module);
+		cJSON_AddItemToArray(row, region);
+		cJSON_AddItemToArray(row, switches);
+		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
+		if(i == 0)
+		{
+			i = 1;
+			cJSON_AddItemToArray(rows, row);
+			prev = row;
+		}
+		else
+		{
+			row->prev = prev;
+			prev->next = row;
+			prev = row;
+		}
+	}
+	/* columns */
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "ip");
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+    column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "bytes");
+    cJSON_AddStringToObject(column, "type", "number");
+	cJSON_AddItemToArray(columns, column);
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "biz");
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "set");
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "module");
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "region");
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "switches");
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+	/* 释放空间 */
+	out = cJSON_Print(response_json);
+	cJSON_Delete(response_json);
+	
+	return out;
+}
+
 /* 响应grafana的 query 请求, 返回的指针用完要free */
 char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
@@ -455,6 +558,10 @@ char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetfl
 	else if(strcasecmp(target, "trend") == 0)
 	{
 		return grafana_build_reponse_query_trend(mysql, request_body, &query_rst, job);
+	}
+	else if(strcasecmp(target, "warning") == 0)
+	{
+		return grafana_build_reponse_query_warning(mysql, request_body, &query_rst, job);
 	}
 
 	return NULL;

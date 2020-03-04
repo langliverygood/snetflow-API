@@ -6,25 +6,18 @@
 
 #include "common.h"
 #include "config.h"
-#include "snetflow_trend.h"
+#include "snetflow_warning.h"
 
 using namespace std;
 
-/* 精确到秒统计 */
-static void trend_insert(map<time_t, uint64_t> *trend_map, time_t key, uint64_t bytes)
-{
-	(*trend_map)[key] += bytes;
-
-	return;
-}
-
 /* 从数据查询结果，并写入相应的map 中 */
-static int trend_query(MYSQL *mysql, const char *query, map<time_t, uint64_t> *raw_map)
+static int warning_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<uint32_t, warning_msg_s> *warning_map)
 {
 	int flag;
-	long int time_long, bytes_long;
-	uint64_t bytes;
-	time_t times, timee, timestamp;
+	long int ip, bytes;
+	time_t times, timee;
+	struct in_addr ip_addr;
+	warning_msg_s *war;
 	MYSQL_RES *res;
 	MYSQL_ROW row;
 	
@@ -40,11 +33,22 @@ static int trend_query(MYSQL *mysql, const char *query, map<time_t, uint64_t> *r
 	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
 	{
-		if(str_to_long(row[0], &bytes_long) == 0 && (str_to_long(row[1], &time_long) == 0))
+		/* bytes字段转化为long int */
+		if(str_to_long(row[0], &bytes))
 		{
-			timestamp = (time_t)time_long;
-			bytes = (uint64_t)bytes_long;
-			trend_insert(raw_map, timestamp, bytes);
+			continue;
+		}
+		if(str_to_long(row[1], &ip) == 0)
+		{
+			(*warning_map)[ip].bytes += bytes;
+			war = &((*warning_map)[ip]);
+			ip_addr.s_addr = htonl((uint32_t)ip);
+			strncpy(war->ip, inet_ntoa(ip_addr), sizeof(war->ip));
+			strncpy(war->biz, row[2], sizeof(war->biz));
+			strncpy(war->set, row[3], sizeof(war->set));
+			strncpy(war->module, row[4], sizeof(war->module));
+			strncpy(war->region, row[5], sizeof(war->region));
+			strncpy(war->switches, row[6], sizeof(war->switches));
 		}
 	}
 	mysql_free_result(res);
@@ -54,14 +58,11 @@ static int trend_query(MYSQL *mysql, const char *query, map<time_t, uint64_t> *r
 	return 0;
 }
 
-int get_trend(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, void* trend_map)
+int get_warning(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, void* warning_map)
 {
 	int i, s_week, e_week, interval;
 	char query[1024], week_str[4], *timestamp;
-	time_t next, inter, time_now;
-	map<time_t, uint64_t> raw_map;
-	map<time_t, uint64_t>::iterator it;
-	map<uint64_t, uint64_t> *p;
+	time_t time_now;
 
 	timestamp = cfg_get_timestamp();
 	/* 保证截止时间不超过当前, 时间跨度不超过7天 */
@@ -88,7 +89,7 @@ int get_trend(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cf
 	{
 		wday_int_to_str(s_week, week_str, sizeof(week_str));
 		sprintf(query, "select %s from record_%s%s where %s >= %lu and %s <= %lu %s", cfg->column, week_str, cfg->table, timestamp, start_time, timestamp, end_time, cfg->condition);
-		trend_query(mysql, query, &raw_map);
+		warning_query(mysql, query, cfg, (map<uint32_t, warning_msg_s> *)warning_map);
 		/* 如果是第二种情况(时间跨度超过一天), 要查询其他6张表的全部 */
 		if(end_time - start_time > 60 * 60 * 24)
 		{
@@ -96,7 +97,7 @@ int get_trend(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cf
 			{
 				wday_int_to_str(i, week_str, sizeof(week_str));
 				sprintf(query, "select %s from record_%s%s where 1=1 %s", cfg->column, week_str, cfg->table, cfg->condition);
-				trend_query(mysql, query, &raw_map);
+				warning_query(mysql, query, cfg, (map<uint32_t, warning_msg_s> *)warning_map);
 			}
 		}
 	}
@@ -117,27 +118,7 @@ int get_trend(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cf
 			{
 				sprintf(query, "select %s from record_%s%s where 1=1 %s", cfg->column, week_str, cfg->table, cfg->condition);
 			}
-			trend_query(mysql, query, &raw_map);
-		}
-	}
-	/* 分段统计 */
-	inter = (end_time - start_time) / cfg_get_trend_point();
-	it = raw_map.begin();
-	p = (map<uint64_t, uint64_t> *)trend_map;
-	for(next = it->first + inter; it != raw_map.end();)
-	{
-		if(it->first <= next)
-		{
-			(*p)[next] += it->second;
-			it++;
-		}
-		else
-		{
-			next += inter;
-			if(next > end_time)
-			{
-				next = end_time;
-			}
+			warning_query(mysql, query, cfg, (map<uint32_t, warning_msg_s> *)warning_map);
 		}
 	}
 	

@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-#define MYSQL_TIMESTAMP "timestamp"
-
 /* 定义ip头部常见的协议字段 */
 #define ICMP 1
 #define IGMP 2 
