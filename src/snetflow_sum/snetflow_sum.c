@@ -39,7 +39,7 @@ static int sum_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, uint64_
 		{
 			continue;
 		}
-		sum += bytes;
+		*sum += bytes;
 	}
 	mysql_free_result(res);
 	time(&timee);
@@ -54,7 +54,7 @@ int get_sum(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg,
 	char query[1024], week_str[4], *timestamp;
 	time_t time_now;
 
-	sum = 0;
+	*sum = 0;
 	timestamp = cfg_get_timestamp();
 	/* 保证截止时间不超过当前, 时间跨度不超过7天 */
 	time(&time_now);
