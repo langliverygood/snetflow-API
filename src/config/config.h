@@ -7,6 +7,7 @@
 #define TREND   1
 #define HISTORY 2
 #define WARNING 3
+#define SUM     4
 
 typedef struct _mysql_conf{
 	char name[32];

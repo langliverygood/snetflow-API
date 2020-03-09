@@ -10,6 +10,7 @@
 #include "snetflow_history.h"
 #include "snetflow_trend.h"
 #include "snetflow_warning.h"
+#include "snetflow_sum.h"
 #include "grafana_json.h"
 
 using namespace std;
@@ -211,6 +212,7 @@ char *grafana_build_reponse_search()
 	cJSON_AddItemToArray(json, cJSON_CreateString("history"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("trend"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("warning"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("sum"));
 	json_str = cJSON_Print(json);
 	cJSON_Delete(json);
 
@@ -523,6 +525,55 @@ static char *grafana_build_reponse_query_warning(MYSQL *mysql, const char *reque
 	return out;
 }
 
+/* 响应grafana的 query(warning) 请求, 返回的指针用完要free */
+static char *grafana_build_reponse_query_sum(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
+{
+	int ret;
+	char *out, *tag;
+	mysql_conf_s *cfg;
+	uint64_t sum;
+	cJSON *root, *response_json, *columns, *column, *rows, *row, *bytes;
+	
+	tag = rst->targets->data.additional;
+	if(tag == NULL)
+	{
+		return NULL;
+	}
+	cfg = get_config(tag, SUM);
+	if(cfg == NULL)
+	{
+		return NULL;
+	}
+	ret = get_sum(mysql, job->start_time, job->end_time, cfg, &sum);
+	if(ret != 0)
+	{
+		return NULL;
+	}
+	/* 根据target拼接json */
+	response_json = cJSON_CreateArray();
+	root = cJSON_CreateObject();
+	cJSON_AddItemToArray(response_json, root);
+	rows = cJSON_AddArrayToObject(root, "rows");
+	columns = cJSON_AddArrayToObject(root, "columns");
+	cJSON_AddStringToObject(root, "type", "table");
+	/* rows */
+	row = cJSON_CreateArray();
+	bytes = cJSON_CreateNumber(sum);
+	cJSON_AddItemToArray(row, bytes);
+	cJSON_AddItemToArray(rows, row);
+	/* columns */
+    column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "bytes");
+    cJSON_AddStringToObject(column, "type", "number");
+	cJSON_AddItemToArray(columns, column);
+
+	/* 释放空间 */
+	out = cJSON_Print(response_json);
+	cJSON_Delete(response_json);
+	
+	return out;
+}
+
 /* 响应grafana的 query 请求, 返回的指针用完要free */
 char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
@@ -562,6 +613,10 @@ char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetfl
 	else if(strcasecmp(target, "warning") == 0)
 	{
 		return grafana_build_reponse_query_warning(mysql, request_body, &query_rst, job);
+	}
+	else if(strcasecmp(target, "sum") == 0)
+	{
+		return grafana_build_reponse_query_sum(mysql, request_body, &query_rst, job);
 	}
 
 	return NULL;
