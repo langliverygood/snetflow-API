@@ -10,22 +10,13 @@
 
 using namespace std;
 
-static void associate_insert(map<string, uint64_t> *my_map, const char *key, uint64_t bytes)
-{
-	string k;
-
-	k = key;
-	(*my_map)[k] += bytes;
-
-	return;
-}
-
 /* 从数据查询结果，并写入相应的map 中 */
 static int associate_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<string, uint64_t> *associate_map)
 {
 	int flag;
 	char s_ip[64], d_ip[64], flow[512], prot_str[16];
 	long int ip1, ip2, bytes, prot;
+	uint32_t byte_to_bit;
 	time_t times, timee;
 	struct in_addr ip_addr1, ip_addr2;
 	MYSQL_RES *res;
@@ -39,15 +30,11 @@ static int associate_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, m
 	}
 	
 	time(&times);
-	res = mysql_use_result(mysql); 
+	byte_to_bit = cfg_get_byte_to_bit();
+	res = mysql_use_result(mysql);
 	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
 	{
-		/* bytes字段转化为long int */
-		if(str_to_long(row[0], &bytes))
-		{
-			continue;
-		}
 		if((str_to_long(row[0], &bytes) == 0) && (str_to_long(row[1], &ip1) == 0) && (str_to_long(row[3], &ip2) == 0) && (str_to_long(row[6], &prot) == 0))
 		{
 			memset(flow, 0, sizeof(flow));
@@ -56,8 +43,8 @@ static int associate_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, m
 			ipprotocal_int_to_str((int)prot, prot_str, sizeof(prot_str));
 			sprintf(s_ip, "%s", inet_ntoa(ip_addr1));
 			sprintf(d_ip, "%s", inet_ntoa(ip_addr2));
-			sprintf(flow, "%s(%s)-->%s:%s(%s) %s", s_ip, row[2], d_ip, row[4], row[5], prot_str);	
-			associate_insert(associate_map, flow, bytes);
+			sprintf(flow, "%s(%s)-->%s:%s(%s) %s", s_ip, row[2], d_ip, row[4], row[5], prot_str);
+			(*associate_map)[flow] += (bytes * byte_to_bit);
 		}
 	}
 	mysql_free_result(res);

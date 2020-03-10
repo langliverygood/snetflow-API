@@ -288,7 +288,7 @@ static char *grafana_build_reponse_query_top(MYSQL *mysql, const char *request_b
     cJSON_AddStringToObject(column, "type", "string");
 	cJSON_AddItemToArray(columns, column);
     column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", "bytes");
+	cJSON_AddStringToObject(column, "text", "bits");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
 	/* 释放空间 */
@@ -420,7 +420,7 @@ static char *grafana_build_reponse_query_history(MYSQL *mysql, const char *reque
     cJSON_AddStringToObject(column, "type", "string");
 	cJSON_AddItemToArray(columns, column);
     column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", "bytes");
+	cJSON_AddStringToObject(column, "text", "bits");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
 	/* 释放空间 */
@@ -501,7 +501,7 @@ static char *grafana_build_reponse_query_warning(MYSQL *mysql, const char *reque
     cJSON_AddStringToObject(column, "type", "string");
 	cJSON_AddItemToArray(columns, column);
     column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", "bytes");
+	cJSON_AddStringToObject(column, "text", "bits");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
 	column = cJSON_CreateObject();
@@ -569,7 +569,7 @@ static char *grafana_build_reponse_query_sum(MYSQL *mysql, const char *request_b
 	cJSON_AddItemToArray(rows, row);
 	/* columns */
     column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", "bytes");
+	cJSON_AddStringToObject(column, "text", "bits");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
 
@@ -645,7 +645,7 @@ static char *grafana_build_reponse_query_associate(MYSQL *mysql, const char *req
     cJSON_AddStringToObject(column, "type", "string");
 	cJSON_AddItemToArray(columns, column);
     column = cJSON_CreateObject();
-	cJSON_AddStringToObject(column, "text", "bytes");
+	cJSON_AddStringToObject(column, "text", "bits");
     cJSON_AddStringToObject(column, "type", "number");
 	cJSON_AddItemToArray(columns, column);
 	/* 释放空间 */

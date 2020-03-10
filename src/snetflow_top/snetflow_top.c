@@ -10,16 +10,6 @@
 
 using namespace std;
 
-static void top_insert(map<string, uint64_t> *my_map, const char *key, uint64_t bytes)
-{
-	string k;
-
-	k = key;
-	(*my_map)[k] += bytes;
-
-	return;
-}
-
 /* 从数据查询结果，并写入相应的map 中 */
 static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<string, uint64_t> *top_map)
 {
@@ -28,6 +18,7 @@ static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<str
 	char *search;
 	long int ip1, ip2, bytes, prot;
 	time_t times, timee;
+	uint32_t byte_to_bit;
 	struct in_addr ip_addr1, ip_addr2;
 	MYSQL_RES *res;
 	MYSQL_ROW row;
@@ -40,6 +31,7 @@ static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<str
 	}
 	
 	time(&times);
+	byte_to_bit = cfg_get_byte_to_bit();
 	res = mysql_use_result(mysql); 
 	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
@@ -57,14 +49,14 @@ static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<str
 			/* 记录业务和集群 */
 			if(!search)
 			{
-				top_insert(top_map, row[1], bytes);
+				(*top_map)[row[1]] += (bytes * byte_to_bit);
 			}
 			else/* 记录ip */
 			{
 				if(str_to_long(row[1], &ip1) == 0)
 				{
 					ip_addr1.s_addr = htonl((uint32_t)ip1);
-					top_insert(top_map, inet_ntoa(ip_addr1), bytes);
+					(*top_map)[inet_ntoa(ip_addr1)] += (bytes * byte_to_bit);
 				}
 			}
 		}
@@ -80,7 +72,7 @@ static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<str
 				sprintf(s_ip, "%s", inet_ntoa(ip_addr1));
 				sprintf(d_ip, "%s", inet_ntoa(ip_addr2));
 				sprintf(flow, "%s(%s)-->%s:%s(%s) %s", s_ip, row[2], d_ip, row[4], row[5], prot_str);	
-				top_insert(top_map, flow, bytes);
+				(*top_map)[flow] += (bytes * byte_to_bit);
 			}
 		}
 	}

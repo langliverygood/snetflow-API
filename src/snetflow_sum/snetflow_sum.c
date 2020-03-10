@@ -18,6 +18,7 @@ static int sum_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, uint64_
 {
 	int flag;
 	long int bytes;
+	uint32_t byte_to_bit;
 	time_t times, timee;
 	MYSQL_RES *res;
 	MYSQL_ROW row;
@@ -30,16 +31,16 @@ static int sum_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, uint64_
 	}
 	
 	time(&times);
+	byte_to_bit = cfg_get_byte_to_bit();
 	res = mysql_use_result(mysql); 
 	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
 	{
 		/* bytes字段转化为long int */
-		if(str_to_long(row[0], &bytes))
+		if(str_to_long(row[0], &bytes) == 0)
 		{
-			continue;
+			*sum += (bytes * byte_to_bit);
 		}
-		*sum += bytes;
 	}
 	mysql_free_result(res);
 	time(&timee);

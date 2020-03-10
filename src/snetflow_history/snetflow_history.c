@@ -16,6 +16,7 @@ static int history_query(MYSQL *mysql, const char *query, vector<history_s> *his
 	int flag;
 	char s_ip[64], d_ip[64], prot_str[16], time_str[32];
 	long int ip1, ip2, bytes, prot, timestamp;
+	uint32_t byte_to_bit;
 	time_t times, timee;
 	struct in_addr ip_addr1, ip_addr2;
 	history_s his;
@@ -30,6 +31,7 @@ static int history_query(MYSQL *mysql, const char *query, vector<history_s> *his
 	}
 	
 	time(&times);
+	byte_to_bit = cfg_get_byte_to_bit();
 	res = mysql_use_result(mysql); 
 	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
@@ -43,7 +45,7 @@ static int history_query(MYSQL *mysql, const char *query, vector<history_s> *his
 			sprintf(d_ip, "%s", inet_ntoa(ip_addr2));
 			timestamp_to_str(timestamp, time_str, sizeof(time_str));
 			sprintf(his.flow, "[%s]%s(%s)-->%s:%s(%s) %s", time_str, s_ip, row[2], d_ip, row[4], row[5], prot_str);
-			his.bytes = bytes;
+			his.bytes = (bytes * byte_to_bit);
 			history_vec->push_back(his);
 		}
 	}

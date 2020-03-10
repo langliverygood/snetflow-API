@@ -10,20 +10,13 @@
 
 using namespace std;
 
-/* 精确到秒统计 */
-static void trend_insert(map<time_t, uint64_t> *trend_map, time_t key, uint64_t bytes)
-{
-	(*trend_map)[key] += bytes;
-
-	return;
-}
-
 /* 从数据查询结果，并写入相应的map 中 */
 static int trend_query(MYSQL *mysql, const char *query, map<time_t, uint64_t> *raw_map)
 {
 	int flag;
 	long int time_long, bytes_long;
 	uint64_t bytes;
+	uint32_t byte_to_bit;
 	time_t times, timee, timestamp;
 	MYSQL_RES *res;
 	MYSQL_ROW row;
@@ -36,6 +29,7 @@ static int trend_query(MYSQL *mysql, const char *query, map<time_t, uint64_t> *r
 	}
 	
 	time(&times);
+	byte_to_bit = cfg_get_byte_to_bit();
 	res = mysql_use_result(mysql); 
 	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
@@ -44,7 +38,8 @@ static int trend_query(MYSQL *mysql, const char *query, map<time_t, uint64_t> *r
 		{
 			timestamp = (time_t)time_long;
 			bytes = (uint64_t)bytes_long;
-			trend_insert(raw_map, timestamp, bytes);
+			/* 精确到秒统计 */
+			(*raw_map)[timestamp] += (bytes * byte_to_bit);
 		}
 	}
 	mysql_free_result(res);

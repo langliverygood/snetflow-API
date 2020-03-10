@@ -26,5 +26,6 @@ uint32_t cfg_get_listened_num();
 uint32_t cfg_get_request_body_size();
 uint32_t cfg_get_history_num();
 uint32_t cfg_get_trend_point();
+uint32_t cfg_get_byte_to_bit();
 
 #endif

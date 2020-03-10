@@ -16,6 +16,7 @@ static int warning_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map
 	int flag;
 	long int ip, bytes;
 	time_t times, timee;
+	uint32_t byte_to_bit;
 	struct in_addr ip_addr;
 	warning_msg_s *war;
 	MYSQL_RES *res;
@@ -29,18 +30,14 @@ static int warning_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map
 	}
 	
 	time(&times);
+	byte_to_bit = cfg_get_byte_to_bit();
 	res = mysql_use_result(mysql); 
 	/*mysql_fetch_row检索结果集的下一行*/
 	while((row = mysql_fetch_row(res)))
 	{
-		/* bytes字段转化为long int */
-		if(str_to_long(row[0], &bytes))
+		if((str_to_long(row[0], &bytes) == 0) && (str_to_long(row[1], &ip) == 0))
 		{
-			continue;
-		}
-		if(str_to_long(row[1], &ip) == 0)
-		{
-			(*warning_map)[ip].bytes += bytes;
+			(*warning_map)[ip].bytes += (bytes * byte_to_bit);
 			war = &((*warning_map)[ip]);
 			ip_addr.s_addr = htonl((uint32_t)ip);
 			strncpy(war->ip, inet_ntoa(ip_addr), sizeof(war->ip));
