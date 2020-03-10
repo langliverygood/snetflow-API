@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <malloc.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <cjson/cJSON.h>
 #include <mysql/mysql.h>
 
@@ -11,6 +14,7 @@
 #include "snetflow_trend.h"
 #include "snetflow_warning.h"
 #include "snetflow_sum.h"
+#include "snetflow_associate.h"
 #include "grafana_json.h"
 
 using namespace std;
@@ -169,6 +173,7 @@ static int grafana_query_structured(const char *request_body, grafana_query_requ
 			return -1;
 		}
 		grafana_get_json_item_str(tmp3, (const char *)"additional", target->data.additional, sizeof(target->data.additional));
+		grafana_get_json_item_str(tmp3, (const char *)"ip", target->data.ip, sizeof(target->data.ip));
 	}
 	/* 解析adhoc_filters数组 */
 	tmp1 = cJSON_GetObjectItem(root, "adhocFilters");
@@ -213,6 +218,7 @@ char *grafana_build_reponse_search()
 	cJSON_AddItemToArray(json, cJSON_CreateString("trend"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("warning"));
 	cJSON_AddItemToArray(json, cJSON_CreateString("sum"));
+	cJSON_AddItemToArray(json, cJSON_CreateString("associate"));
 	json_str = cJSON_Print(json);
 	cJSON_Delete(json);
 
@@ -574,6 +580,81 @@ static char *grafana_build_reponse_query_sum(MYSQL *mysql, const char *request_b
 	return out;
 }
 
+/* 响应grafana的 query(associate) 请求, 返回的指针用完要free */
+static char *grafana_build_reponse_query_associate(MYSQL *mysql, const char *request_body, grafana_query_request_s *rst, snetflow_job_s *job)
+{
+	int i, ret;
+	char *out, *tag;
+	uint32_t ip;
+	map<string, uint64_t> associate_map;
+	map<string, uint64_t>::iterator it;
+	string s;
+	mysql_conf_s *cfg;
+	cJSON *root, *response_json, *columns, *column, *rows, *row, *json_tag, *json_bytes;
+	cJSON *prev;
+	
+	tag = rst->targets->data.additional;
+	if(tag == NULL)
+	{
+		return NULL;
+	}
+	cfg = get_config(tag, ASSOCIATE);
+	if(cfg == NULL)
+	{
+		return NULL;
+	}
+	ip = ntohl(inet_addr(rst->targets->data.ip));
+	ret = get_associate(mysql, job->start_time, job->end_time, cfg, (void *)&associate_map, ip);
+	if(ret != 0)
+	{
+		return NULL;
+	}
+	/* 根据target拼接json */
+	response_json = cJSON_CreateArray();
+	root = cJSON_CreateObject();
+	cJSON_AddItemToArray(response_json, root);
+	rows = cJSON_AddArrayToObject(root, "rows");
+	columns = cJSON_AddArrayToObject(root, "columns");
+	cJSON_AddStringToObject(root, "type", "table");
+	/* rows */
+	for(i = 0, it = associate_map.begin(); it != associate_map.end(); it++)  
+	{
+		s = it->first;
+		json_tag = cJSON_CreateString(s.c_str());
+		json_bytes = cJSON_CreateNumber(it->second);
+		row = cJSON_CreateArray();
+	    cJSON_AddItemToArray(row, json_tag);
+	    cJSON_AddItemToArray(row, json_bytes);
+		/* 优化cJSON_AddItemToArray(rows, row)提高速度*/ 
+		if(i == 0)
+		{
+			i = 1;
+			cJSON_AddItemToArray(rows, row);
+			prev = row;
+		}
+		else
+		{
+			row->prev = prev;
+			prev->next = row;
+			prev = row;
+		}
+	}
+	/* columns */
+	column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", cfg->name);
+    cJSON_AddStringToObject(column, "type", "string");
+	cJSON_AddItemToArray(columns, column);
+    column = cJSON_CreateObject();
+	cJSON_AddStringToObject(column, "text", "bytes");
+    cJSON_AddStringToObject(column, "type", "number");
+	cJSON_AddItemToArray(columns, column);
+	/* 释放空间 */
+	out = cJSON_Print(response_json);
+	cJSON_Delete(response_json);
+	
+	return out;
+}
+
 /* 响应grafana的 query 请求, 返回的指针用完要free */
 char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetflow_job_s *job)
 {
@@ -617,6 +698,10 @@ char *grafana_build_reponse_query(MYSQL *mysql, const char *request_body, snetfl
 	else if(strcasecmp(target, "sum") == 0)
 	{
 		return grafana_build_reponse_query_sum(mysql, request_body, &query_rst, job);
+	}
+	else if(strcasecmp(target, "associate") == 0)
+	{
+		return grafana_build_reponse_query_associate(mysql, request_body, &query_rst, job);
 	}
 
 	return NULL;

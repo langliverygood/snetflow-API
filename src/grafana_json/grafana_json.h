@@ -16,6 +16,7 @@ typedef struct _grafana_query_request_range{
 
 typedef struct _grafana_query_request_targets_data{
 	char additional[128];
+	char ip[16];
 }grafana_query_request_targets_data_s;
 
 typedef struct _grafana_query_request_target{
