@@ -20,10 +20,10 @@ $ snetflow-API    necessary:\n\
 $ snetflow-API\
 ©2020 langl5@chinaunicom.cn\n"
 
-typedef struct _httpd_info_s{
-    struct event_base *base;
-    struct evhttp *httpd;
-}httpd_info_s;
+typedef struct _httpd_info_s {
+    struct event_base* base;
+    struct evhttp* httpd;
+} httpd_info_s;
 
 #ifdef __cplusplus
 }

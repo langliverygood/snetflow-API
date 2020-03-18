@@ -8,8 +8,6 @@
 #include "config.h"
 #include "snetflow_top.h"
 
-using namespace std;
-
 /* 从数据查询结果，并写入相应的map 中 */
 static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<string, uint64_t> *top_map)
 {
@@ -83,7 +81,7 @@ static int top_query(MYSQL *mysql, const char *query, mysql_conf_s *cfg, map<str
 	return 0;
 }
 
-int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, void* top_map)
+int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, map<string, uint64_t>* top_map)
 {
 	int i, s_week, e_week, interval;
 	char query[1024], week_str[4], *timestamp;
@@ -114,7 +112,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg,
 	{
 		wday_int_to_str(s_week, week_str, sizeof(week_str));
 		sprintf(query, "select %s from record_%s%s where %s >= %lu and %s <= %lu %s", cfg->column, week_str, cfg->table, timestamp, start_time, timestamp, end_time, cfg->condition);
-		top_query(mysql, query, cfg, (map<string, uint64_t> *)top_map);
+		top_query(mysql, query, cfg, top_map);
 		/* 如果是第二种情况(时间跨度超过一天), 要查询其他6张表的全部 */
 		if(end_time - start_time > 60 * 60 * 24)
 		{
@@ -122,7 +120,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg,
 			{
 				wday_int_to_str(i, week_str, sizeof(week_str));
 				sprintf(query, "select %s from record_%s%s where 1=1 %s", cfg->column, week_str, cfg->table, cfg->condition);
-				top_query(mysql, query, cfg, (map<string, uint64_t> *)top_map);
+				top_query(mysql, query, cfg, top_map);
 			}
 		}
 	}
@@ -143,7 +141,7 @@ int get_top(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg,
 			{
 				sprintf(query, "select %s from record_%s%s where 1=1 %s", cfg->column, week_str, cfg->table, cfg->condition);
 			}
-			top_query(mysql, query, cfg, (map<string, uint64_t> *)top_map);
+			top_query(mysql, query, cfg, top_map);
 		}
 	}
 	

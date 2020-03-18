@@ -57,7 +57,7 @@ static int history_query(MYSQL *mysql, const char *query, vector<history_s> *his
 }
 
 /* */
-int get_history(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, void* history_vec)
+int get_history(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *cfg, vector<history_s>* history_vec)
 {
 	int s_week;
 	char query[1024], week_str[4], *timestamp;
@@ -79,7 +79,7 @@ int get_history(MYSQL *mysql, time_t start_time, time_t end_time, mysql_conf_s *
 	/* history只查一张表，且有limit限制 */
 	wday_int_to_str(s_week, week_str, sizeof(week_str));
 	sprintf(query, "select %s from record_%s%s where %s >= %lu and %s <= %lu %s limit %u", cfg->column, week_str, cfg->table, timestamp, start_time, timestamp, end_time, cfg->condition, cfg_get_history_num());
-	history_query(mysql, query, (vector<history_s> *)history_vec);	
+	history_query(mysql, query, history_vec);	
 	
 	return 0;
 }
